@@ -1,0 +1,228 @@
+"use client"
+
+import { useState } from "react"
+import { useCart, useRestaurantData } from "@/context/restaurant-context"
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet"
+import { Button } from "@/components/ui/button"
+import { Minus, Plus, Trash2, ShoppingBag, MessageCircle } from "lucide-react"
+import Image from "next/image"
+import { toast } from "sonner"
+
+interface CartDrawerProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}
+
+export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
+  const { settings, addOrder } = useRestaurantData()
+  const { cart, updateQuantity, removeFromCart, clearCart, getCartTotal } =
+    useCart()
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const formatPrice = (price: number) => {
+    return new Intl.NumberFormat("es-MX", {
+      style: "currency",
+      currency: settings.currency,
+    }).format(price)
+  }
+
+  const generateWhatsAppMessage = (orderNumber?: number) => {
+    if (cart.length === 0) return ""
+
+    let message = `Hello! I would like to place an order`
+
+    if (orderNumber) {
+      message += ` #${orderNumber}`
+    }
+
+    message += `:\n\n`
+    
+    cart.forEach((item) => {
+      message += `${item.quantity}x ${item.product.name} - ${formatPrice(item.product.price * item.quantity)}\n`
+    })
+    
+    message += `\n*Total: ${formatPrice(getCartTotal())}*`
+    message += `\n\nThank you!`
+    
+    return encodeURIComponent(message)
+  }
+
+  const handleWhatsAppOrder = async () => {
+    if (cart.length === 0) {
+      toast.error("Your cart is empty")
+      return
+    }
+
+    setIsSubmitting(true)
+
+    try {
+      const savedOrder = await addOrder({
+        customerName: "WhatsApp Customer",
+        items: cart.map((item) => ({
+          productId: item.product.id,
+          productName: item.product.name,
+          quantity: item.quantity,
+          price: item.product.price,
+        })),
+        total: getCartTotal(),
+        status: "preparing",
+        isPaid: false,
+      })
+
+      const message = generateWhatsAppMessage(savedOrder.orderNumber)
+      const whatsappUrl = `https://wa.me/${settings.whatsappNumber}?text=${message}`
+
+      window.open(whatsappUrl, "_blank")
+      clearCart()
+      onOpenChange(false)
+      toast.success(`Order #${savedOrder.orderNumber} saved`)
+    } catch (error) {
+      console.error(error)
+      toast.error("Could not save the order. Please try again.")
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent className="flex w-full flex-col sm:max-w-md px-4">
+        <SheetHeader className="border-b pb-4">
+          <SheetTitle className="flex items-center gap-2 text-xl">
+            <ShoppingBag className="h-5 w-5" />
+            Your Order
+          </SheetTitle>
+        </SheetHeader>
+
+        {cart.length === 0 ? (
+          <div className="flex flex-1 flex-col items-center justify-center gap-4 py-8">
+            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-muted">
+              <ShoppingBag className="h-10 w-10 text-muted-foreground" />
+            </div>
+            <div className="text-center">
+              <h3 className="text-lg font-semibold">Your cart is empty</h3>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Add some delicious items to get started
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              className="mt-2"
+            >
+              Browse Menu
+            </Button>
+          </div>
+        ) : (
+          <>
+            <div className="flex-1 overflow-y-auto py-4">
+              <div className="flex flex-col gap-4">
+                {cart.map((item) => (
+                  <div
+                    key={item.product.id}
+                    className="flex gap-3 rounded-xl border bg-card p-3"
+                  >
+                    <div className="relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-lg">
+                      <Image
+                        src={item.product.image}
+                        alt={item.product.name}
+                        fill
+                        className="object-cover"
+                        sizes="80px"
+                      />
+                    </div>
+                    <div className="flex flex-1 flex-col justify-between">
+                      <div>
+                        <h4 className="font-medium leading-tight">
+                          {item.product.name}
+                        </h4>
+                        <p className="text-sm text-primary">
+                          {formatPrice(item.product.price)}
+                        </p>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={() =>
+                              updateQuantity(item.product.id, item.quantity - 1)
+                            }
+                          >
+                            <Minus className="h-3 w-3" />
+                          </Button>
+                          <span className="w-6 text-center text-sm font-medium">
+                            {item.quantity}
+                          </span>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={() =>
+                              updateQuantity(item.product.id, item.quantity + 1)
+                            }
+                          >
+                            <Plus className="h-3 w-3" />
+                          </Button>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                          onClick={() => {
+                            removeFromCart(item.product.id)
+                            toast.info(`${item.product.name} removed`)
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="border-t pt-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
+              <div className="mb-4 flex items-center justify-between">
+                <span className="text-lg font-medium">Total</span>
+                <span className="text-2xl font-bold text-primary">
+                  {formatPrice(getCartTotal())}
+                </span>
+              </div>
+              
+              <div className="flex flex-col gap-2">
+                <Button
+                  onClick={handleWhatsAppOrder}
+                  size="lg"
+                  disabled={isSubmitting}
+                  className="w-full gap-2 rounded-xl text-base"
+                >
+                  <MessageCircle className="h-5 w-5" />
+                  {isSubmitting ? "Saving order..." : "Order via WhatsApp"}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    clearCart()
+                    toast.info("Cart cleared")
+                  }}
+                  className="w-full"
+                >
+                  Clear Cart
+                </Button>
+              </div>
+            </div>
+          </>
+        )}
+      </SheetContent>
+    </Sheet>
+  )
+}
