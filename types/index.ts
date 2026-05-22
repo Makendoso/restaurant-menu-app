@@ -8,8 +8,13 @@ export interface Product {
   available: boolean
 }
 
-export interface Category {
+export type Category = {
   id: string
+  name: string
+  icon: string
+}
+
+export type CreateCategoryInput = {
   name: string
   icon: string
 }

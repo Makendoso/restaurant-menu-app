@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { useRestaurantData } from "@/context/restaurant-context"
 import { getRestaurantServiceErrorMessage } from "@/services/restaurant-service"
-import { Category } from "@/types"
+import type { Category, CreateCategoryInput } from "@/types"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -60,7 +60,7 @@ export function CategoriesTab() {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingCategory, setEditingCategory] = useState<Category | null>(null)
   const [isSaving, setIsSaving] = useState(false)
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<CreateCategoryInput>({
     name: "",
     icon: "utensils",
   })
@@ -105,9 +105,9 @@ export function CategoriesTab() {
       return
     }
 
-    const categoryData = {
-      ...formData,
+    const categoryData: CreateCategoryInput = {
       name,
+      icon: formData.icon,
     }
 
     setIsSaving(true)

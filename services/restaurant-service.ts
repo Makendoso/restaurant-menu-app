@@ -1,6 +1,7 @@
 import { supabase } from "@/lib/supabase"
 import type {
   Category,
+  CreateCategoryInput,
   Order,
   OrderStatus,
   Product,
@@ -118,12 +119,15 @@ export async function removeProduct(id: string) {
   if (error) throw error
 }
 
-export async function createCategory(category: Omit<Category, "id">) {
+export async function createCategory(input: CreateCategoryInput) {
   await requireAdminSession("crear categorias")
 
   const { data, error } = await supabase
     .from("categories")
-    .insert(category)
+    .insert({
+      name: input.name,
+      icon: input.icon,
+    })
     .select("*")
     .single()
 

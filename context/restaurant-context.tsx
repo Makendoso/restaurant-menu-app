@@ -12,6 +12,7 @@ import {
 import type {
   Product,
   Category,
+  CreateCategoryInput,
   CartItem,
   RestaurantSettings,
   Order,
@@ -45,7 +46,7 @@ interface RestaurantDataContextType {
   addProduct: (product: Omit<Product, "id">) => Promise<void>
   updateProduct: (id: string, product: Partial<Product>) => Promise<void>
   deleteProduct: (id: string) => Promise<void>
-  addCategory: (category: Omit<Category, "id">) => Promise<void>
+  addCategory: (category: CreateCategoryInput) => Promise<void>
   updateCategory: (id: string, category: Partial<Category>) => Promise<void>
   deleteCategory: (id: string) => Promise<void>
   updateSettings: (settings: Partial<RestaurantSettings>) => Promise<void>
@@ -160,7 +161,7 @@ function RestaurantDataProvider({ children }: { children: ReactNode }) {
     [products, updateProduct]
   )
 
-  const addCategory = useCallback(async (category: Omit<Category, "id">) => {
+  const addCategory = useCallback(async (category: CreateCategoryInput) => {
     const createdCategory = await createCategory(category)
     setCategories((prev) => [...prev, createdCategory])
   }, [])
