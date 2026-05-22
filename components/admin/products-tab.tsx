@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { useRestaurantData } from "@/context/restaurant-context"
+import { getRestaurantServiceErrorMessage } from "@/services/restaurant-service"
 import { Product } from "@/types"
 import { Button } from "@/components/ui/button"
 import {
@@ -152,7 +153,9 @@ export function ProductsTab() {
       resetForm()
     } catch (error) {
       console.error(error)
-      toast.error("Could not save product")
+      toast.error(
+        getRestaurantServiceErrorMessage(error, "Could not save product")
+      )
     } finally {
       setIsSaving(false)
     }
@@ -165,7 +168,9 @@ export function ProductsTab() {
         toast.success("Product deleted")
       } catch (error) {
         console.error(error)
-        toast.error("Could not delete product")
+        toast.error(
+          getRestaurantServiceErrorMessage(error, "Could not delete product")
+        )
       }
     }
   }
@@ -352,7 +357,12 @@ export function ProductsTab() {
                       await toggleProductAvailability(product.id)
                     } catch (error) {
                       console.error(error)
-                      toast.error("Could not update availability")
+                      toast.error(
+                        getRestaurantServiceErrorMessage(
+                          error,
+                          "Could not update availability"
+                        )
+                      )
                     } finally {
                       setPendingProductId(null)
                     }

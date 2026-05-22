@@ -86,10 +86,10 @@ export function WhatsAppFab() {
     <button
       onClick={handleClick}
       disabled={isSubmitting}
-      className="fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-[#25D366] text-white shadow-lg transition-transform hover:scale-110 active:scale-95"
+      className="fixed bottom-[calc(env(safe-area-inset-bottom)+1rem)] right-4 z-40 flex h-11 w-11 items-center justify-center rounded-full bg-[#25D366]/90 text-white shadow-md shadow-black/15 transition hover:bg-[#25D366] hover:shadow-lg active:scale-95 disabled:opacity-70 sm:bottom-6 sm:right-6 sm:h-14 sm:w-14"
       aria-label="Contact via WhatsApp"
     >
-      <MessageCircle className="h-7 w-7" />
+      <MessageCircle className="h-5 w-5 sm:h-7 sm:w-7" />
     </button>
   )
 }

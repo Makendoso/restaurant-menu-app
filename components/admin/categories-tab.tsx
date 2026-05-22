@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { useRestaurantData } from "@/context/restaurant-context"
+import { getRestaurantServiceErrorMessage } from "@/services/restaurant-service"
 import { Category } from "@/types"
 import { Button } from "@/components/ui/button"
 import {
@@ -124,7 +125,9 @@ export function CategoriesTab() {
       resetForm()
     } catch (error) {
       console.error(error)
-      toast.error("Could not save category")
+      toast.error(
+        getRestaurantServiceErrorMessage(error, "Could not save category")
+      )
     } finally {
       setIsSaving(false)
     }
@@ -148,7 +151,9 @@ export function CategoriesTab() {
         toast.success("Category deleted")
       } catch (error) {
         console.error(error)
-        toast.error("Could not delete category")
+        toast.error(
+          getRestaurantServiceErrorMessage(error, "Could not delete category")
+        )
       }
     }
   }

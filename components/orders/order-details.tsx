@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { Order } from "@/types"
 import { useRestaurantData } from "@/context/restaurant-context"
+import { getRestaurantServiceErrorMessage } from "@/services/restaurant-service"
 import {
   Sheet,
   SheetContent,
@@ -90,7 +91,9 @@ export function OrderDetails({ order, onClose }: OrderDetailsProps) {
       await advanceOrderStatus(currentOrder.id)
     } catch (error) {
       console.error(error)
-      toast.error("Could not update order status")
+      toast.error(
+        getRestaurantServiceErrorMessage(error, "Could not update order status")
+      )
     } finally {
       setPendingAction(null)
     }
@@ -103,7 +106,12 @@ export function OrderDetails({ order, onClose }: OrderDetailsProps) {
       await toggleOrderPayment(currentOrder.id)
     } catch (error) {
       console.error(error)
-      toast.error("Could not update payment status")
+      toast.error(
+        getRestaurantServiceErrorMessage(
+          error,
+          "Could not update payment status"
+        )
+      )
     } finally {
       setPendingAction(null)
     }
@@ -111,16 +119,16 @@ export function OrderDetails({ order, onClose }: OrderDetailsProps) {
 
   return (
     <Sheet open={!!order} onOpenChange={() => onClose()}>
-      <SheetContent className="flex w-full flex-col sm:max-w-lg">
-        <SheetHeader className="space-y-1">
-          <div className="flex items-center justify-between">
+      <SheetContent className="flex w-full flex-col gap-0 p-5 pb-[calc(env(safe-area-inset-bottom)+1rem)] sm:max-w-lg sm:p-6">
+        <SheetHeader className="space-y-3 p-0 pr-10">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <SheetTitle className="flex items-center gap-2">
               <Hash className="h-5 w-5" />
               Order #{currentOrder.orderNumber}
             </SheetTitle>
             <div
               className={cn(
-                "flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium",
+                "flex w-fit shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium",
                 status.className
               )}
             >
@@ -133,7 +141,7 @@ export function OrderDetails({ order, onClose }: OrderDetailsProps) {
           </p>
         </SheetHeader>
 
-        <div className="flex-1 overflow-y-auto py-4">
+        <div className="flex-1 overflow-y-auto py-5">
           {/* Customer Info */}
           <div className="mb-6 space-y-3 rounded-lg bg-secondary/50 p-4">
             <div className="flex items-center gap-3">
@@ -239,7 +247,7 @@ export function OrderDetails({ order, onClose }: OrderDetailsProps) {
         </div>
 
         {/* Actions */}
-        <div className="space-y-3 border-t pt-4">
+        <div className="space-y-3 border-t pb-1 pt-4">
           {status.nextLabel && (
             <Button
               className="w-full gap-2"

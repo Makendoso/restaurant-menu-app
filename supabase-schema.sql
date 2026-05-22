@@ -59,6 +59,11 @@ alter table public.products enable row level security;
 alter table public.settings enable row level security;
 alter table public.orders enable row level security;
 
+grant usage on schema public to anon, authenticated;
+grant select on public.categories, public.products, public.settings to anon, authenticated;
+grant select, insert, update, delete on public.categories, public.products, public.settings to authenticated;
+grant select, update, delete on public.orders to authenticated;
+
 grant usage, select on sequence public.order_number_seq to anon, authenticated;
 
 drop policy if exists "Public read categories" on public.categories;

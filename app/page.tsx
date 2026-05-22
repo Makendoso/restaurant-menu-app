@@ -52,7 +52,7 @@ export default function MenuPage() {
         searchQuery={searchQuery}
       />
 
-      <main className="container mx-auto px-4 py-6">
+      <main className="container mx-auto px-4 py-6 pb-24 sm:pb-10">
         <section className="mb-8 text-center">
           <h1 className="text-3xl font-bold tracking-tight md:text-4xl text-balance">
             Bienvenidos a {settings.name}

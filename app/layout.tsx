@@ -58,7 +58,13 @@ export default function RootLayout({
         >
           <RestaurantProvider>
             {children}
-            <Toaster position="top-center" richColors />
+            <Toaster
+              position="bottom-center"
+              richColors
+              toastOptions={{
+                className: "mb-[calc(env(safe-area-inset-bottom)+0.5rem)]",
+              }}
+            />
           </RestaurantProvider>
         </ThemeProvider>
         {process.env.NODE_ENV === 'production' && <Analytics />}

@@ -10,6 +10,56 @@ import type {
 export type SettingsRow = RestaurantSettings & { id?: string }
 export type OrderInsert = Omit<Order, "id" | "orderNumber" | "createdAt">
 
+function getErrorMessage(error: unknown) {
+  if (error instanceof Error) return error.message
+
+  if (typeof error === "object" && error !== null && "message" in error) {
+    const message = (error as { message?: unknown }).message
+    if (typeof message === "string") return message
+  }
+
+  return ""
+}
+
+export function getRestaurantServiceErrorMessage(
+  error: unknown,
+  fallback: string
+) {
+  const message = getErrorMessage(error)
+
+  if (
+    message.toLowerCase().includes("row-level security") ||
+    message.toLowerCase().includes("permission denied") ||
+    (typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      (error as { code?: unknown }).code === "42501")
+  ) {
+    return "No tienes permiso para guardar este cambio. Vuelve a iniciar sesion o revisa las politicas RLS de Supabase."
+  }
+
+  if (message.toLowerCase().includes("jwt")) {
+    return "Tu sesion de administrador expiro. Vuelve a iniciar sesion e intenta otra vez."
+  }
+
+  return message ? `${fallback}: ${message}` : fallback
+}
+
+async function requireAdminSession(action: string) {
+  const {
+    data: { session },
+    error,
+  } = await supabase.auth.getSession()
+
+  if (error) throw error
+
+  if (!session) {
+    throw new Error(
+      `Debes iniciar sesion como administrador para ${action}.`
+    )
+  }
+}
+
 export async function fetchRestaurantData() {
   const [productsResult, categoriesResult, settingsResult, ordersResult] =
     await Promise.all([
@@ -35,6 +85,8 @@ export async function fetchRestaurantData() {
 }
 
 export async function createProduct(product: Omit<Product, "id">) {
+  await requireAdminSession("crear productos")
+
   const { data, error } = await supabase
     .from("products")
     .insert(product)
@@ -46,6 +98,8 @@ export async function createProduct(product: Omit<Product, "id">) {
 }
 
 export async function saveProduct(id: string, product: Partial<Product>) {
+  await requireAdminSession("editar productos")
+
   const { data, error } = await supabase
     .from("products")
     .update(product)
@@ -58,11 +112,15 @@ export async function saveProduct(id: string, product: Partial<Product>) {
 }
 
 export async function removeProduct(id: string) {
+  await requireAdminSession("eliminar productos")
+
   const { error } = await supabase.from("products").delete().eq("id", id)
   if (error) throw error
 }
 
 export async function createCategory(category: Omit<Category, "id">) {
+  await requireAdminSession("crear categorias")
+
   const { data, error } = await supabase
     .from("categories")
     .insert(category)
@@ -74,6 +132,8 @@ export async function createCategory(category: Omit<Category, "id">) {
 }
 
 export async function saveCategory(id: string, category: Partial<Category>) {
+  await requireAdminSession("editar categorias")
+
   const { data, error } = await supabase
     .from("categories")
     .update(category)
@@ -86,6 +146,8 @@ export async function saveCategory(id: string, category: Partial<Category>) {
 }
 
 export async function removeCategory(id: string) {
+  await requireAdminSession("eliminar categorias")
+
   const { error } = await supabase.from("categories").delete().eq("id", id)
   if (error) throw error
 }
@@ -94,6 +156,8 @@ export async function saveSettings(
   settings: RestaurantSettings,
   settingsId: string | null
 ) {
+  await requireAdminSession("editar la configuracion")
+
   if (settingsId) {
     const { data, error } = await supabase
       .from("settings")
@@ -117,6 +181,8 @@ export async function saveSettings(
 }
 
 export async function saveOrderStatus(orderId: string, status: OrderStatus) {
+  await requireAdminSession("actualizar ordenes")
+
   const { data, error } = await supabase
     .from("orders")
     .update({ status })
@@ -129,6 +195,8 @@ export async function saveOrderStatus(orderId: string, status: OrderStatus) {
 }
 
 export async function saveOrderPayment(orderId: string, isPaid: boolean) {
+  await requireAdminSession("actualizar pagos")
+
   const { data, error } = await supabase
     .from("orders")
     .update({ isPaid })
