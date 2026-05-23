@@ -2,22 +2,53 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
-import { Clock, Copy, Play, Plus, Power, XCircle } from "lucide-react"
+import {
+  Clock,
+  Copy,
+  Hash,
+  Play,
+  Plus,
+  Power,
+  ReceiptText,
+  XCircle,
+} from "lucide-react"
 import { useRestaurantData } from "@/context/restaurant-context"
 import type { OrderSession, RestaurantTable } from "@/types"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { cn } from "@/lib/utils"
 
-type TableState = "libre" | "activa" | "expirada" | "cerrada"
+type TableState = "libre" | "activa" | "expirada" | "cerrada" | "inactiva"
+
+const stateConfig: Record<
+  TableState,
+  { label: string; className: string }
+> = {
+  libre: {
+    label: "Libre",
+    className: "border-transparent bg-secondary text-secondary-foreground",
+  },
+  activa: {
+    label: "Activa",
+    className:
+      "border-transparent bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300",
+  },
+  expirada: {
+    label: "Expirada",
+    className:
+      "border-transparent bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300",
+  },
+  cerrada: {
+    label: "Cerrada",
+    className: "border-transparent bg-muted text-muted-foreground",
+  },
+  inactiva: {
+    label: "Inactiva",
+    className: "border-border bg-background text-muted-foreground",
+  },
+}
 
 function getLatestSession(sessions: OrderSession[], tableId: string) {
   return sessions
@@ -33,7 +64,7 @@ function getTableState(
   session: OrderSession | undefined,
   currentTime: number
 ): TableState {
-  if (!table.isActive) return "expirada"
+  if (!table.isActive) return "inactiva"
   if (!session) return "libre"
   if (session.status === "closed") return "cerrada"
   if (
@@ -63,10 +94,14 @@ function formatRemainingTime(
   return `${hours}h ${rest}m`
 }
 
-function getStatusBadgeVariant(status: TableState) {
-  if (status === "activa") return "default"
-  if (status === "libre") return "secondary"
-  return "outline"
+function hasActiveSession(
+  session: OrderSession | undefined,
+  currentTime: number
+) {
+  return (
+    session?.status === "active" &&
+    new Date(session.expiresAt).getTime() > currentTime
+  )
 }
 
 export function TablesTab() {
@@ -154,18 +189,18 @@ export function TablesTab() {
             Control de QR, sesiones y pedidos ligados a mesa.
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex w-full gap-2 sm:w-auto">
           <Input
             inputMode="numeric"
             placeholder="Numero"
             value={tableNumber}
             onChange={(event) => setTableNumber(event.target.value)}
-            className="w-28"
+            className="min-w-0 flex-1 sm:w-28 sm:flex-none"
           />
           <Button
             onClick={handleCreateTable}
             disabled={pendingAction === "create"}
-            className="gap-2"
+            className="shrink-0 gap-2"
           >
             <Plus className="h-4 w-4" />
             Crear
@@ -173,121 +208,147 @@ export function TablesTab() {
         </div>
       </div>
 
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Mesa</TableHead>
-            <TableHead>Estado mesa</TableHead>
-            <TableHead>Sesion</TableHead>
-            <TableHead>Estado sesion</TableHead>
-            <TableHead>Tiempo</TableHead>
-            <TableHead>Ordenes</TableHead>
-            <TableHead>QR</TableHead>
-            <TableHead className="text-right">Acciones</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {rows.length === 0 ? (
-            <TableRow>
-              <TableCell colSpan={8} className="py-10 text-center text-muted-foreground">
-                Aun no hay mesas. Crea la primera para generar su QR.
-              </TableCell>
-            </TableRow>
-          ) : (
-            rows.map(({ table, session, state, orderCount }) => {
-              const isPending = pendingAction?.includes(table.id)
-              const canCreateSession = table.isActive && state !== "activa"
+      {rows.length === 0 ? (
+        <div className="rounded-xl border border-dashed py-10 text-center text-sm text-muted-foreground">
+          Aun no hay mesas. Crea la primera para generar su QR.
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {rows.map(({ table, session, state, orderCount }) => {
+            const isPending = pendingAction?.includes(table.id)
+            const isSessionActive = hasActiveSession(session, currentTime)
+            const canCreateSession = table.isActive && !isSessionActive
+            const qrUrl = `/menu?t=${table.qrToken}`
 
-              return (
-                <TableRow key={table.id}>
-                  <TableCell className="font-medium">Mesa {table.number}</TableCell>
-                  <TableCell>
-                    <Badge variant={table.isActive ? "secondary" : "outline"}>
-                      {table.isActive ? "activa" : "desactivada"}
+            return (
+              <Card
+                key={table.id}
+                className={cn(
+                  "gap-4 overflow-hidden rounded-xl py-0",
+                  !table.isActive && "bg-muted/30"
+                )}
+              >
+                <CardHeader className="gap-3 border-b px-4 py-4 sm:px-5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Hash className="h-4 w-4" />
+                        Mesa
+                      </div>
+                      <CardTitle className="mt-1 text-3xl">
+                        {table.number}
+                      </CardTitle>
+                    </div>
+                    <Badge
+                      variant="outline"
+                      className={cn("shrink-0", stateConfig[state].className)}
+                    >
+                      {stateConfig[state].label}
                     </Badge>
-                  </TableCell>
-                  <TableCell>
-                    {session ? (
-                      <span className="font-mono text-xs">
-                        {session.id.slice(0, 8)}
-                      </span>
-                    ) : (
-                      <span className="text-muted-foreground">Sin sesion</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={getStatusBadgeVariant(state)}>
-                      {state}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <span className="inline-flex items-center gap-1.5">
-                      <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-                      {formatRemainingTime(session, currentTime)}
-                    </span>
-                  </TableCell>
-                  <TableCell>{orderCount}</TableCell>
-                  <TableCell>
+                  </div>
+                </CardHeader>
+
+                <CardContent className="space-y-4 px-4 pb-4 sm:px-5">
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div className="rounded-lg bg-muted/50 p-3">
+                      <p className="text-xs text-muted-foreground">Sesion</p>
+                      <p className="mt-1 truncate font-medium">
+                        {isSessionActive ? "Activa" : "Sin sesion activa"}
+                      </p>
+                    </div>
+                    <div className="rounded-lg bg-muted/50 p-3">
+                      <p className="text-xs text-muted-foreground">Mesa</p>
+                      <p className="mt-1 font-medium">
+                        {table.isActive ? "Activa" : "Desactivada"}
+                      </p>
+                    </div>
+                    <div className="rounded-lg bg-muted/50 p-3">
+                      <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <Clock className="h-3.5 w-3.5" />
+                        Tiempo
+                      </p>
+                      <p className="mt-1 font-medium">
+                        {formatRemainingTime(session, currentTime)}
+                      </p>
+                    </div>
+                    <div className="rounded-lg bg-muted/50 p-3">
+                      <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <ReceiptText className="h-3.5 w-3.5" />
+                        Ordenes
+                      </p>
+                      <p className="mt-1 font-medium">{orderCount}</p>
+                    </div>
+                  </div>
+
+                  <div className="min-w-0 rounded-lg border bg-background p-3">
+                    <p className="text-xs text-muted-foreground">URL QR</p>
+                    <p className="mt-1 truncate font-mono text-xs text-muted-foreground">
+                      {qrUrl}
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                     <Button
                       variant="outline"
-                      size="sm"
-                      className="gap-2"
+                      className="w-full justify-center"
                       onClick={() => handleCopyQrUrl(table.qrToken)}
                     >
                       <Copy className="h-4 w-4" />
-                      Copiar URL
+                      Copiar enlace QR
                     </Button>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex justify-end gap-2">
-                      {session?.status === "active" && state === "activa" && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          disabled={isPending}
-                          onClick={() =>
-                            runAction(`${table.id}-close`, () =>
-                              closeSession(session.id)
-                            )
-                          }
-                        >
-                          <XCircle className="h-4 w-4" />
-                        </Button>
-                      )}
-                      {canCreateSession && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          disabled={isPending}
-                          onClick={() =>
-                            runAction(`${table.id}-create-session`, () =>
-                              createSessionForTable(table.id)
-                            )
-                          }
-                        >
-                          <Play className="h-4 w-4" />
-                        </Button>
-                      )}
+
+                    {isSessionActive && session && (
                       <Button
-                        variant={table.isActive ? "outline" : "default"}
-                        size="sm"
+                        variant="outline"
+                        className="w-full justify-center"
                         disabled={isPending}
                         onClick={() =>
-                          runAction(`${table.id}-active`, () =>
-                            setTableActive(table.id, !table.isActive)
+                          runAction(`${table.id}-close`, () =>
+                            closeSession(session.id)
                           )
                         }
                       >
-                        <Power className="h-4 w-4" />
+                        <XCircle className="h-4 w-4" />
+                        Cerrar sesion
                       </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              )
-            })
-          )}
-        </TableBody>
-      </Table>
+                    )}
+
+                    {canCreateSession && (
+                      <Button
+                        variant="outline"
+                        className="w-full justify-center"
+                        disabled={isPending}
+                        onClick={() =>
+                          runAction(`${table.id}-create-session`, () =>
+                            createSessionForTable(table.id)
+                          )
+                        }
+                      >
+                        <Play className="h-4 w-4" />
+                        Nueva sesion
+                      </Button>
+                    )}
+
+                    <Button
+                      variant={table.isActive ? "outline" : "default"}
+                      className="w-full justify-center"
+                      disabled={isPending}
+                      onClick={() =>
+                        runAction(`${table.id}-active`, () =>
+                          setTableActive(table.id, !table.isActive)
+                        )
+                      }
+                    >
+                      <Power className="h-4 w-4" />
+                      {table.isActive ? "Desactivar mesa" : "Activar mesa"}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }
