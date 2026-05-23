@@ -64,7 +64,9 @@ export function TableOrders({
       setOrders(await fetchPublicOrders(tableId, sessionId))
     } catch (loadError) {
       console.error(loadError)
-      setError("No pudimos cargar las ordenes de esta mesa.")
+      setError(
+        "No pudimos consultar las ordenes de esta mesa. La sesion puede haber expirado."
+      )
     } finally {
       setIsLoading(false)
     }
@@ -106,7 +108,7 @@ export function TableOrders({
         <p className="text-sm text-muted-foreground">Cargando ordenes...</p>
       ) : orders.length === 0 ? (
         <p className="text-sm text-muted-foreground">
-          Aun no hay ordenes para esta sesion.
+          Todavia no hay ordenes para esta mesa.
         </p>
       ) : (
         <div className="space-y-3">

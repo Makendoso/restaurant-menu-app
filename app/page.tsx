@@ -1,18 +1,19 @@
 "use client"
 
-import { Suspense, useMemo, useState } from "react"
+import { Suspense, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import { useRestaurantData } from "@/context/restaurant-context"
 import { useTableSession } from "@/hooks/use-table-session"
 
 import { Navbar } from "@/components/menu/navbar"
-import { CategoryFilter } from "@/components/menu/category-filter"
-import { ProductCard } from "@/components/menu/product-card"
-import { ProductGridSkeleton } from "@/components/menu/product-skeleton"
 import { CartDrawer } from "@/components/menu/cart-drawer"
+import {
+  CustomerBottomNav,
+  type CustomerTab,
+} from "@/components/menu/customer-bottom-nav"
+import { CustomerMenuSection } from "@/components/menu/customer-menu-section"
 import { TableOrders } from "@/components/menu/table-orders"
 
-import { Search } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 
 function MenuPageContent() {
@@ -22,37 +23,14 @@ function MenuPageContent() {
   const qrToken = searchParams.get("t")
   const tableSession = useTableSession(qrToken)
 
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
   const [isCartOpen, setIsCartOpen] = useState(false)
+  const [activeTab, setActiveTab] = useState<CustomerTab>("menu")
   const [ordersRefreshKey, setOrdersRefreshKey] = useState(0)
-
-  const filteredProducts = useMemo(() => {
-    return products.filter((product) => {
-      const matchesCategory =
-        selectedCategory === null || product.categoryId === selectedCategory
-
-      const matchesSearch =
-        searchQuery === "" ||
-        product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        product.description?.toLowerCase().includes(searchQuery.toLowerCase())
-
-      return matchesCategory && matchesSearch
-    })
-  }, [products, selectedCategory, searchQuery])
-
-  const getCategoryName = (categoryId: string | null) => {
-    if (categoryId === null) {
-      return "All Items"
-    }
-
-    const category = categories.find((item) => item.id === categoryId)
-
-    return category?.name || "All Items"
-  }
 
   const handleOrderSaved = () => {
     setOrdersRefreshKey((value) => value + 1)
+    setActiveTab("orders")
   }
 
   return (
@@ -63,9 +41,9 @@ function MenuPageContent() {
         searchQuery={searchQuery}
       />
 
-      <main className="container mx-auto px-4 py-6 pb-24 sm:pb-10">
+      <main className="container mx-auto px-4 py-6 pb-28 sm:pb-10">
         <section className="mb-8 text-center">
-          <h1 className="text-3xl font-bold tracking-tight md:text-4xl text-balance">
+          <h1 className="text-3xl font-bold tracking-tight text-balance md:text-4xl">
             Bienvenidos a {settings.name}
           </h1>
 
@@ -75,9 +53,7 @@ function MenuPageContent() {
 
           <div className="mt-4 flex justify-center">
             {tableSession.table && tableSession.status === "ready" ? (
-              <Badge variant="secondary">
-                Mesa {tableSession.table.number}
-              </Badge>
+              <Badge variant="secondary">Mesa {tableSession.table.number}</Badge>
             ) : tableSession.message ? (
               <div className="max-w-xl rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200">
                 {tableSession.message}
@@ -86,75 +62,41 @@ function MenuPageContent() {
           </div>
         </section>
 
-        <section className="mb-6">
-          <CategoryFilter
-            selectedCategory={selectedCategory}
-            onSelectCategory={setSelectedCategory}
+        <CustomerBottomNav activeTab={activeTab} onTabChange={setActiveTab} />
+
+        {activeTab === "menu" ? (
+          <CustomerMenuSection
+            products={products}
+            categories={categories}
+            isLoading={isLoading}
+            error={error}
+            searchQuery={searchQuery}
+            onSearchClear={() => setSearchQuery("")}
           />
-        </section>
-
-        {tableSession.status === "ready" && (
-          <TableOrders
-            tableId={tableSession.table?.id}
-            sessionId={tableSession.session?.id}
-            settings={settings}
-            refreshKey={ordersRefreshKey}
-          />
-        )}
-
-        <section>
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-xl font-semibold">
-              {getCategoryName(selectedCategory)}
-            </h2>
-
-            <span className="text-sm text-muted-foreground">
-              {filteredProducts.length} item
-              {filteredProducts.length !== 1 && "s"}
-            </span>
-          </div>
-
-          {error ? (
-            <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed bg-muted/30 py-16 text-center">
-              <h3 className="text-lg font-semibold">No pudimos cargar el menu</h3>
-              <p className="mt-1 text-sm text-muted-foreground">{error}</p>
+        ) : (
+          <section>
+            <div className="mb-5">
+              <p className="text-sm font-medium text-primary">Ordenes</p>
+              <h2 className="text-2xl font-semibold tracking-tight">
+                Consulta el estado
+              </h2>
             </div>
-          ) : isLoading ? (
-            <ProductGridSkeleton />
-          ) : filteredProducts.length === 0 ? (
-            <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed bg-muted/30 py-16">
-              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted">
-                <Search className="h-8 w-8 text-muted-foreground" />
+
+            {tableSession.table && tableSession.session ? (
+              <TableOrders
+                tableId={tableSession.table.id}
+                sessionId={tableSession.session.id}
+                settings={settings}
+                refreshKey={ordersRefreshKey}
+              />
+            ) : (
+              <div className="rounded-lg border bg-card p-4 text-sm text-muted-foreground">
+                {tableSession.message ||
+                  "Escanea el QR de tu mesa para consultar tus ordenes."}
               </div>
-
-              <h3 className="mt-4 text-lg font-semibold">No items found</h3>
-
-              <p className="mt-1 text-sm text-muted-foreground">
-                {searchQuery
-                  ? `No results for "${searchQuery}"`
-                  : "No items in this category"}
-              </p>
-
-              {(searchQuery || selectedCategory) && (
-                <button
-                  onClick={() => {
-                    setSearchQuery("")
-                    setSelectedCategory(null)
-                  }}
-                  className="mt-4 text-sm font-medium text-primary hover:underline"
-                >
-                  Clear filters
-                </button>
-              )}
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {filteredProducts.map((product) => (
-                <ProductCard key={product.id} product={product} />
-              ))}
-            </div>
-          )}
-        </section>
+            )}
+          </section>
+        )}
       </main>
 
       <CartDrawer
