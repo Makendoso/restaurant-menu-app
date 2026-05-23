@@ -59,7 +59,6 @@ export interface Order {
   status: OrderStatus
   isPaid: boolean
   notes?: string
-  editableUntil?: string | null
   createdAt: string
 }
 

@@ -2,11 +2,7 @@
 
 import { useState } from "react"
 import { useCart, useRestaurantData } from "@/context/restaurant-context"
-import {
-  getPublicOrderUpdateErrorMessage,
-  updatePublicOrder,
-  validateTableSession,
-} from "@/services/restaurant-service"
+import { validateTableSession } from "@/services/restaurant-service"
 import { TABLE_SESSION_UNAVAILABLE_MESSAGE } from "@/hooks/use-table-session"
 import type { Order, TableSessionState } from "@/types"
 import {
@@ -27,9 +23,7 @@ interface CartDrawerProps {
     canCreateOrder: boolean
     expiredMessage: string
   }
-  editingOrder?: Order | null
   onOrderSaved?: (order: Order) => void
-  onCancelEdit?: () => void
   onSessionInvalid?: () => void
 }
 
@@ -37,9 +31,7 @@ export function CartDrawer({
   open,
   onOpenChange,
   tableSession,
-  editingOrder,
   onOrderSaved,
-  onCancelEdit,
   onSessionInvalid,
 }: CartDrawerProps) {
   const { settings, addOrder } = useRestaurantData()
@@ -87,18 +79,7 @@ export function CartDrawer({
         price: item.product.price,
       }))
 
-      const savedOrder = editingOrder
-        ? await updatePublicOrder({
-            orderId: editingOrder.id,
-            tableId: validation.table?.id || tableSession.table.id,
-            sessionId: validation.session?.id || tableSession.session.id,
-            items: orderItems,
-            total: getCartTotal(),
-            notes: editingOrder.notes || null,
-            status: editingOrder.status,
-            editableUntil: editingOrder.editableUntil,
-          })
-        : await addOrder({
+      const savedOrder = await addOrder({
         customerName: "Cliente",
         items: orderItems,
         total: getCartTotal(),
@@ -112,17 +93,11 @@ export function CartDrawer({
       onOrderSaved?.(savedOrder)
       onOpenChange(false)
       toast.success(
-        editingOrder
-          ? `Orden #${savedOrder.orderNumber} actualizada`
-          : `Orden #${savedOrder.orderNumber} enviada. Puedes corregirla durante unos minutos antes de que el restaurante la acepte.`
+        `Orden #${savedOrder.orderNumber} enviada. Necesitas cambiar algo? Solicita ayuda al personal.`
       )
     } catch (error) {
       console.error(error)
-      toast.error(
-        editingOrder
-          ? getPublicOrderUpdateErrorMessage(error)
-          : "No se pudo guardar la orden. Intenta de nuevo."
-      )
+      toast.error("No se pudo guardar la orden. Intenta de nuevo.")
     } finally {
       setIsSubmitting(false)
     }
@@ -134,7 +109,7 @@ export function CartDrawer({
         <SheetHeader className="border-b pb-4">
           <SheetTitle className="flex items-center gap-2 text-xl">
             <ShoppingBag className="h-5 w-5" />
-            {editingOrder ? `Modificar orden #${editingOrder.orderNumber}` : "Your Order"}
+            Your Order
           </SheetTitle>
         </SheetHeader>
 
@@ -250,27 +225,19 @@ export function CartDrawer({
                 >
                   <Send className="h-5 w-5" />
                   {isSubmitting
-                    ? editingOrder
-                      ? "Guardando cambios..."
-                      : "Enviando orden..."
-                    : editingOrder
-                      ? "Guardar cambios"
-                      : "Enviar orden"}
+                    ? "Enviando orden..."
+                    : "Enviar orden"}
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => {
                     clearCart()
-                    if (editingOrder) {
-                      onCancelEdit?.()
-                    } else {
-                      toast.info("Cart cleared")
-                    }
+                    toast.info("Cart cleared")
                   }}
                   className="w-full"
                 >
-                  {editingOrder ? "Cancelar cambios" : "Clear Cart"}
+                  Clear Cart
                 </Button>
               </div>
             </div>

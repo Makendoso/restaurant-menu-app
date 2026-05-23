@@ -14,16 +14,6 @@ import type {
 
 export type SettingsRow = RestaurantSettings & { id?: string }
 export type OrderInsert = Omit<Order, "id" | "orderNumber" | "createdAt">
-export type PublicOrderUpdateInput = {
-  orderId: string
-  tableId: string
-  sessionId: string
-  items: Order["items"]
-  total: number
-  notes?: string | null
-  status?: OrderStatus
-  editableUntil?: string | null
-}
 export type TableSessionValidation = {
   valid: boolean
   message: string | null
@@ -71,7 +61,6 @@ type SessionValidationRpcRow = {
 type OrderRow = Order & {
   table_id?: string | null
   session_id?: string | null
-  editable_until?: string | null
 }
 
 function mapRestaurantTable(row: RestaurantTableRow): RestaurantTable {
@@ -157,7 +146,6 @@ function mapOrder(row: OrderRow): Order {
     ...row,
     tableId: row.tableId ?? row.table_id ?? null,
     sessionId: row.sessionId ?? row.session_id ?? null,
-    editableUntil: row.editableUntil ?? row.editable_until ?? null,
   }
 }
 
@@ -194,36 +182,6 @@ export function getRestaurantServiceErrorMessage(
   }
 
   return message ? `${fallback}: ${message}` : fallback
-}
-
-export function getPublicOrderUpdateErrorMessage(error: unknown) {
-  const message = getErrorMessage(error).toLowerCase()
-
-  if (message.includes("order_not_found")) {
-    return "No encontramos esta orden para la mesa actual. Actualiza la vista e intenta de nuevo."
-  }
-
-  if (message.includes("order_not_editable")) {
-    return "Esta orden ya fue aceptada por el restaurante y no se puede modificar."
-  }
-
-  if (message.includes("edit_window_expired")) {
-    return "El tiempo para modificar esta orden terminó. Si necesitas algo más, solicita ayuda al personal."
-  }
-
-  if (message.includes("session_invalid")) {
-    return "La sesión de esta mesa ya no está disponible. Escanea nuevamente el QR o solicita ayuda al personal."
-  }
-
-  if (message.includes("table_inactive")) {
-    return "Esta mesa ya no está disponible. Solicita ayuda al personal."
-  }
-
-  if (message.includes("invalid_items") || message.includes("invalid_total")) {
-    return "La orden tiene datos inválidos. Revisa los productos e intenta de nuevo."
-  }
-
-  return "No se pudo actualizar la orden. Puede que ya no sea editable."
 }
 
 async function requireAdminSession(action: string) {
@@ -462,33 +420,6 @@ export async function validateTableSession(
   }
 
   return mapSessionValidationRow(row as SessionValidationRpcRow)
-}
-
-export async function updatePublicOrder(input: PublicOrderUpdateInput) {
-  if (process.env.NODE_ENV === "development") {
-    console.info("[updatePublicOrder] payload", {
-      orderId: input.orderId,
-      tableId: input.tableId,
-      sessionId: input.sessionId,
-      itemCount: input.items.length,
-      total: input.total,
-      status: input.status,
-      editableUntil: input.editableUntil,
-    })
-  }
-
-  const { data, error } = await supabase.rpc("update_public_order", {
-    input_order_id: input.orderId,
-    input_table_id: input.tableId,
-    input_session_id: input.sessionId,
-    input_items: input.items,
-    input_total: input.total,
-    input_notes: input.notes || null,
-  })
-
-  if (error) throw error
-  const row = Array.isArray(data) ? data[0] : data
-  return mapOrder(row as OrderRow)
 }
 
 export async function startOrResumeTableSession(

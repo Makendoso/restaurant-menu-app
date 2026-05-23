@@ -2,9 +2,8 @@
 
 import { Suspense, useMemo, useState } from "react"
 import { useSearchParams } from "next/navigation"
-import { useCart, useRestaurantData } from "@/context/restaurant-context"
+import { useRestaurantData } from "@/context/restaurant-context"
 import { useTableSession } from "@/hooks/use-table-session"
-import type { CartItem, Order } from "@/types"
 
 import { Navbar } from "@/components/menu/navbar"
 import { CategoryFilter } from "@/components/menu/category-filter"
@@ -19,7 +18,6 @@ import { Badge } from "@/components/ui/badge"
 function MenuPageContent() {
   const { settings, products, categories, isLoading, error } =
     useRestaurantData()
-  const { clearCart, replaceCart } = useCart()
   const searchParams = useSearchParams()
   const qrToken = searchParams.get("t")
   const tableSession = useTableSession(qrToken)
@@ -27,7 +25,6 @@ function MenuPageContent() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
   const [isCartOpen, setIsCartOpen] = useState(false)
-  const [editingOrder, setEditingOrder] = useState<Order | null>(null)
   const [ordersRefreshKey, setOrdersRefreshKey] = useState(0)
 
   const filteredProducts = useMemo(() => {
@@ -54,19 +51,7 @@ function MenuPageContent() {
     return category?.name || "All Items"
   }
 
-  const handleEditOrder = (order: Order, items: CartItem[]) => {
-    setEditingOrder(order)
-    replaceCart(items)
-    setIsCartOpen(true)
-  }
-
-  const handleCancelEdit = () => {
-    setEditingOrder(null)
-    setIsCartOpen(false)
-  }
-
   const handleOrderSaved = () => {
-    setEditingOrder(null)
     setOrdersRefreshKey((value) => value + 1)
   }
 
@@ -112,10 +97,8 @@ function MenuPageContent() {
           <TableOrders
             tableId={tableSession.table?.id}
             sessionId={tableSession.session?.id}
-            products={products}
             settings={settings}
             refreshKey={ordersRefreshKey}
-            onEditOrder={handleEditOrder}
           />
         )}
 
@@ -176,17 +159,9 @@ function MenuPageContent() {
 
       <CartDrawer
         open={isCartOpen}
-        onOpenChange={(open) => {
-          setIsCartOpen(open)
-          if (!open && editingOrder) {
-            setEditingOrder(null)
-            clearCart()
-          }
-        }}
+        onOpenChange={setIsCartOpen}
         tableSession={tableSession}
-        editingOrder={editingOrder}
         onOrderSaved={handleOrderSaved}
-        onCancelEdit={handleCancelEdit}
         onSessionInvalid={tableSession.invalidateSession}
       />
     </div>

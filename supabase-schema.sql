@@ -60,14 +60,15 @@ create table if not exists public.orders (
   notes text,
   table_id uuid references public.restaurant_tables(id) on delete set null,
   session_id uuid references public.order_sessions(id) on delete set null,
-  editable_until timestamptz,
   "createdAt" timestamptz not null default now()
 );
 
 alter table public.orders
   add column if not exists table_id uuid references public.restaurant_tables(id) on delete set null,
-  add column if not exists session_id uuid references public.order_sessions(id) on delete set null,
-  add column if not exists editable_until timestamptz;
+  add column if not exists session_id uuid references public.order_sessions(id) on delete set null;
+
+alter table public.orders
+  drop column if exists editable_until;
 
 alter table public.orders
   alter column status set default 'pending';
@@ -368,7 +369,6 @@ returns table (
   status text,
   "isPaid" boolean,
   notes text,
-  editable_until timestamptz,
   "createdAt" timestamptz
 )
 language plpgsql
@@ -435,8 +435,7 @@ begin
     total,
     status,
     "isPaid",
-    notes,
-    editable_until
+    notes
   )
   values (
     trim(customer_name),
@@ -447,8 +446,7 @@ begin
     order_total,
     'pending',
     false,
-    nullif(trim(coalesce(order_notes, '')), ''),
-    now() + interval '3 minutes'
+    nullif(trim(coalesce(order_notes, '')), '')
   )
   returning * into inserted_order;
 
@@ -465,7 +463,6 @@ begin
       inserted_order.status,
       inserted_order."isPaid",
       inserted_order.notes,
-      inserted_order.editable_until,
       inserted_order."createdAt";
 end;
 $$;
@@ -497,7 +494,6 @@ returns table (
   status text,
   "isPaid" boolean,
   notes text,
-  editable_until timestamptz,
   "createdAt" timestamptz
 )
 language plpgsql
@@ -533,7 +529,6 @@ begin
       o.status,
       o."isPaid",
       o.notes,
-      o.editable_until,
       o."createdAt"
     from public.orders as o
     where o.table_id = order_table_id
@@ -546,126 +541,6 @@ $$;
 grant execute on function public.get_public_session_orders(uuid, uuid) to anon, authenticated;
 
 drop function if exists public.update_public_order(uuid, uuid, uuid, jsonb, numeric, text);
-
-create or replace function public.update_public_order(
-  input_order_id uuid,
-  input_table_id uuid,
-  input_session_id uuid,
-  input_items jsonb,
-  input_total numeric,
-  input_notes text default null
-)
-returns table (
-  id uuid,
-  "orderNumber" integer,
-  "customerName" text,
-  "tableNumber" text,
-  table_id uuid,
-  session_id uuid,
-  items jsonb,
-  total numeric,
-  status text,
-  "isPaid" boolean,
-  notes text,
-  editable_until timestamptz,
-  "createdAt" timestamptz
-)
-language plpgsql
-security definer
-set search_path = public
-as $$
-declare
-  existing_order public.orders%rowtype;
-  updated_order public.orders%rowtype;
-begin
-  perform public.expire_order_sessions();
-
-  if input_order_id is null then
-    raise exception 'order_not_found';
-  end if;
-
-  if input_items is null or jsonb_typeof(input_items) <> 'array' or jsonb_array_length(input_items) = 0 then
-    raise exception 'invalid_items';
-  end if;
-
-  if input_total is null or input_total < 0 then
-    raise exception 'invalid_total';
-  end if;
-
-  if not exists (
-    select 1
-    from public.restaurant_tables as rt
-    where rt.id = input_table_id
-      and rt.is_active = true
-  ) then
-    raise exception 'table_inactive';
-  end if;
-
-  if not exists (
-    select 1
-    from public.order_sessions as os
-    where os.id = input_session_id
-      and os.table_id = input_table_id
-      and os.status = 'active'
-      and os.expires_at > now()
-  ) then
-    raise exception 'session_invalid';
-  end if;
-
-  select o.*
-  into existing_order
-  from public.orders as o
-  where o.id = input_order_id
-    and o.table_id = input_table_id
-    and o.session_id = input_session_id
-  limit 1;
-
-  if existing_order.id is null then
-    raise exception 'order_not_found';
-  end if;
-
-  if existing_order.status <> 'pending' then
-    raise exception 'order_not_editable';
-  end if;
-
-  if existing_order.editable_until is null or existing_order.editable_until <= now() then
-    raise exception 'edit_window_expired';
-  end if;
-
-  update public.orders
-  set
-    items = input_items,
-    total = input_total,
-    notes = nullif(trim(coalesce(input_notes, '')), '')
-  where id = existing_order.id
-  returning * into updated_order;
-
-  return query
-    select
-      updated_order.id,
-      updated_order."orderNumber",
-      updated_order."customerName",
-      updated_order."tableNumber",
-      updated_order.table_id,
-      updated_order.session_id,
-      updated_order.items,
-      updated_order.total,
-      updated_order.status,
-      updated_order."isPaid",
-      updated_order.notes,
-      updated_order.editable_until,
-      updated_order."createdAt";
-end;
-$$;
-
-grant execute on function public.update_public_order(
-  uuid,
-  uuid,
-  uuid,
-  jsonb,
-  numeric,
-  text
-) to anon, authenticated;
 
 drop policy if exists "Authenticated read orders" on public.orders;
 create policy "Authenticated read orders"

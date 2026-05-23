@@ -74,7 +74,6 @@ interface CartContextType {
   addToCart: (product: Product) => void
   removeFromCart: (productId: string) => void
   updateQuantity: (productId: string, quantity: number) => void
-  replaceCart: (items: CartItem[]) => void
   clearCart: () => void
   getCartTotal: () => number
   getCartCount: () => number
@@ -432,8 +431,6 @@ function CartProvider({ children }: { children: ReactNode }) {
     )
   }, [removeFromCart])
 
-  const replaceCart = useCallback((items: CartItem[]) => setCart(items), [])
-
   const clearCart = useCallback(() => setCart([]), [])
 
   const getCartTotal = useCallback(
@@ -456,7 +453,6 @@ function CartProvider({ children }: { children: ReactNode }) {
       addToCart,
       removeFromCart,
       updateQuantity,
-      replaceCart,
       clearCart,
       getCartTotal,
       getCartCount,
@@ -466,7 +462,6 @@ function CartProvider({ children }: { children: ReactNode }) {
       addToCart,
       removeFromCart,
       updateQuantity,
-      replaceCart,
       clearCart,
       getCartTotal,
       getCartCount,
