@@ -5,6 +5,8 @@ import type { TableSessionState } from "@/types"
 import { startOrResumeTableSession } from "@/services/restaurant-service"
 
 const STORAGE_KEY = "restaurant_table_session"
+export const TABLE_SESSION_UNAVAILABLE_MESSAGE =
+  "La sesión de esta mesa ya no está disponible. Escanea nuevamente el QR o solicita ayuda al personal."
 const EXPIRED_MESSAGE =
   "La sesión de esta mesa expiró. Escanea nuevamente el QR o solicita ayuda al personal."
 
@@ -30,6 +32,25 @@ function writeStoredSession(qrToken: string, sessionId: string) {
     STORAGE_KEY,
     JSON.stringify({ qrToken, sessionId })
   )
+}
+
+export function clearStoredTableSession(qrToken?: string | null) {
+  try {
+    if (!qrToken) {
+      window.localStorage.removeItem(STORAGE_KEY)
+      return
+    }
+
+    const raw = window.localStorage.getItem(STORAGE_KEY)
+    if (!raw) return
+
+    const stored = JSON.parse(raw) as StoredSession
+    if (stored.qrToken === qrToken) {
+      window.localStorage.removeItem(STORAGE_KEY)
+    }
+  } catch {
+    window.localStorage.removeItem(STORAGE_KEY)
+  }
 }
 
 export function useTableSession(qrToken: string | null) {
@@ -125,6 +146,15 @@ export function useTableSession(qrToken: string | null) {
       message: isExpired ? EXPIRED_MESSAGE : state.message,
       canCreateOrder: Boolean(isActive),
       expiredMessage: EXPIRED_MESSAGE,
+      invalidateSession: () => {
+        clearStoredTableSession(qrToken)
+        setState({
+          table: null,
+          session: null,
+          status: "invalid",
+          message: TABLE_SESSION_UNAVAILABLE_MESSAGE,
+        })
+      },
     }
-  }, [currentTime, state])
+  }, [currentTime, qrToken, state])
 }

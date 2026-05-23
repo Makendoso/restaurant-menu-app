@@ -2,7 +2,11 @@
 
 import { useState } from "react"
 import { useCart, useRestaurantData } from "@/context/restaurant-context"
-import { updatePublicOrder } from "@/services/restaurant-service"
+import {
+  updatePublicOrder,
+  validateTableSession,
+} from "@/services/restaurant-service"
+import { TABLE_SESSION_UNAVAILABLE_MESSAGE } from "@/hooks/use-table-session"
 import type { Order, TableSessionState } from "@/types"
 import {
   Sheet,
@@ -25,6 +29,7 @@ interface CartDrawerProps {
   editingOrder?: Order | null
   onOrderSaved?: (order: Order) => void
   onCancelEdit?: () => void
+  onSessionInvalid?: () => void
 }
 
 export function CartDrawer({
@@ -34,6 +39,7 @@ export function CartDrawer({
   editingOrder,
   onOrderSaved,
   onCancelEdit,
+  onSessionInvalid,
 }: CartDrawerProps) {
   const { settings, addOrder } = useRestaurantData()
   const { cart, updateQuantity, removeFromCart, clearCart, getCartTotal } =
@@ -53,14 +59,26 @@ export function CartDrawer({
       return
     }
 
-    if (!tableSession.canCreateOrder || !tableSession.session) {
-      toast.error(tableSession.message || tableSession.expiredMessage)
+    if (!tableSession.canCreateOrder || !tableSession.table || !tableSession.session) {
+      toast.error(tableSession.message || TABLE_SESSION_UNAVAILABLE_MESSAGE)
       return
     }
 
     setIsSubmitting(true)
 
     try {
+      const validation = await validateTableSession(
+        tableSession.table.id,
+        tableSession.session.id
+      )
+
+      if (!validation.valid) {
+        clearCart()
+        onSessionInvalid?.()
+        toast.error(validation.message || TABLE_SESSION_UNAVAILABLE_MESSAGE)
+        return
+      }
+
       const orderItems = cart.map((item) => ({
         productId: item.product.id,
         productName: item.product.name,
@@ -71,8 +89,8 @@ export function CartDrawer({
       const savedOrder = editingOrder
         ? await updatePublicOrder({
             orderId: editingOrder.id,
-            tableId: tableSession.table?.id || "",
-            sessionId: tableSession.session.id,
+            tableId: validation.table?.id || tableSession.table.id,
+            sessionId: validation.session?.id || tableSession.session.id,
             items: orderItems,
             total: getCartTotal(),
             notes: editingOrder.notes || null,
@@ -83,8 +101,8 @@ export function CartDrawer({
         total: getCartTotal(),
         status: "pending",
         isPaid: false,
-        tableId: tableSession.table?.id,
-        sessionId: tableSession.session.id,
+        tableId: validation.table?.id || tableSession.table.id,
+        sessionId: validation.session?.id || tableSession.session.id,
       })
 
       clearCart()

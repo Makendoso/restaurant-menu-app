@@ -22,6 +22,12 @@ export type PublicOrderUpdateInput = {
   total: number
   notes?: string | null
 }
+export type TableSessionValidation = {
+  valid: boolean
+  message: string | null
+  table: RestaurantTable | null
+  session: OrderSession | null
+}
 
 type RestaurantTableRow = {
   id: string
@@ -47,6 +53,17 @@ type SessionRpcRow = {
   session_status: OrderSessionStatus
   started_at: string
   expires_at: string
+}
+
+type SessionValidationRpcRow = {
+  valid: boolean
+  message: string | null
+  table_id: string | null
+  table_number: number | null
+  session_id: string | null
+  session_status: OrderSessionStatus | null
+  started_at: string | null
+  expires_at: string | null
 }
 
 type OrderRow = Order & {
@@ -95,6 +112,41 @@ function mapSessionRpcRow(row: SessionRpcRow): TableSessionState {
     },
     status: row.session_status === "active" ? "ready" : row.session_status,
     message: null,
+  }
+}
+
+function mapSessionValidationRow(
+  row: SessionValidationRpcRow
+): TableSessionValidation {
+  return {
+    valid: row.valid,
+    message: row.message,
+    table:
+      row.valid && row.table_id && row.table_number !== null
+        ? {
+            id: row.table_id,
+            number: row.table_number,
+            qrToken: "",
+            isActive: true,
+            createdAt: "",
+          }
+        : null,
+    session:
+      row.valid &&
+      row.session_id &&
+      row.table_id &&
+      row.session_status &&
+      row.started_at &&
+      row.expires_at
+        ? {
+            id: row.session_id,
+            tableId: row.table_id,
+            status: row.session_status,
+            startedAt: row.started_at,
+            expiresAt: row.expires_at,
+            createdAt: row.started_at,
+          }
+        : null,
   }
 }
 
@@ -353,6 +405,31 @@ export async function fetchPublicOrders(tableId: string, sessionId: string) {
 
   if (error) throw error
   return ((data || []) as OrderRow[]).map(mapOrder)
+}
+
+export async function validateTableSession(
+  tableId: string,
+  sessionId: string
+): Promise<TableSessionValidation> {
+  const { data, error } = await supabase.rpc("validate_table_session", {
+    order_table_id: tableId,
+    order_session_id: sessionId,
+  })
+
+  if (error) throw error
+
+  const row = Array.isArray(data) ? data[0] : data
+  if (!row) {
+    return {
+      valid: false,
+      message:
+        "La sesión de esta mesa ya no está disponible. Escanea nuevamente el QR o solicita ayuda al personal.",
+      table: null,
+      session: null,
+    }
+  }
+
+  return mapSessionValidationRow(row as SessionValidationRpcRow)
 }
 
 export async function updatePublicOrder(input: PublicOrderUpdateInput) {

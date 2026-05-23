@@ -187,6 +187,7 @@ function MenuPageContent() {
         editingOrder={editingOrder}
         onOrderSaved={handleOrderSaved}
         onCancelEdit={handleCancelEdit}
+        onSessionInvalid={tableSession.invalidateSession}
       />
     </div>
   )

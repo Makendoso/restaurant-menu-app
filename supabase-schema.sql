@@ -258,6 +258,92 @@ grant execute on function public.start_or_resume_order_session(
   integer
 ) to anon, authenticated;
 
+drop function if exists public.validate_table_session(uuid, uuid);
+
+create or replace function public.validate_table_session(
+  order_table_id uuid,
+  order_session_id uuid
+)
+returns table (
+  valid boolean,
+  message text,
+  table_id uuid,
+  table_number integer,
+  session_id uuid,
+  session_status text,
+  started_at timestamptz,
+  expires_at timestamptz
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  active_row record;
+begin
+  perform public.expire_order_sessions();
+
+  if order_table_id is null or order_session_id is null then
+    return query
+      select
+        false,
+        'La sesión de esta mesa ya no está disponible. Escanea nuevamente el QR o solicita ayuda al personal.',
+        null::uuid,
+        null::integer,
+        null::uuid,
+        null::text,
+        null::timestamptz,
+        null::timestamptz;
+    return;
+  end if;
+
+  select
+    rt.id as table_id,
+    rt.number as table_number,
+    os.id as session_id,
+    os.status as session_status,
+    os.started_at,
+    os.expires_at
+  into active_row
+  from public.order_sessions as os
+  join public.restaurant_tables as rt on rt.id = os.table_id
+  where rt.id = order_table_id
+    and rt.is_active = true
+    and os.id = order_session_id
+    and os.table_id = order_table_id
+    and os.status = 'active'
+    and os.expires_at > now()
+  limit 1;
+
+  if not found then
+    return query
+      select
+        false,
+        'La sesión de esta mesa ya no está disponible. Escanea nuevamente el QR o solicita ayuda al personal.',
+        null::uuid,
+        null::integer,
+        null::uuid,
+        null::text,
+        null::timestamptz,
+        null::timestamptz;
+    return;
+  end if;
+
+  return query
+    select
+      true,
+      null::text,
+      active_row.table_id,
+      active_row.table_number,
+      active_row.session_id,
+      active_row.session_status,
+      active_row.started_at,
+      active_row.expires_at;
+end;
+$$;
+
+grant execute on function public.validate_table_session(uuid, uuid) to anon, authenticated;
+
 drop function if exists public.create_public_order(text, text, jsonb, numeric, text);
 drop function if exists public.create_public_order(text, uuid, jsonb, numeric, text);
 drop function if exists public.create_public_order(text, uuid, uuid, jsonb, numeric, text);
