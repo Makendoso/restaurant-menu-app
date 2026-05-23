@@ -548,12 +548,12 @@ grant execute on function public.get_public_session_orders(uuid, uuid) to anon, 
 drop function if exists public.update_public_order(uuid, uuid, uuid, jsonb, numeric, text);
 
 create or replace function public.update_public_order(
-  target_order_id uuid,
-  order_table_id uuid,
-  order_session_id uuid,
-  order_items jsonb,
-  order_total numeric,
-  order_notes text default null
+  input_order_id uuid,
+  input_table_id uuid,
+  input_session_id uuid,
+  input_items jsonb,
+  input_total numeric,
+  input_notes text default null
 )
 returns table (
   id uuid,
@@ -580,52 +580,63 @@ declare
 begin
   perform public.expire_order_sessions();
 
-  if order_items is null or jsonb_typeof(order_items) <> 'array' or jsonb_array_length(order_items) = 0 then
-    raise exception 'order_items must be a non-empty array';
+  if input_order_id is null then
+    raise exception 'order_not_found';
   end if;
 
-  if order_total is null or order_total < 0 then
-    raise exception 'order_total must be zero or greater';
+  if input_items is null or jsonb_typeof(input_items) <> 'array' or jsonb_array_length(input_items) = 0 then
+    raise exception 'invalid_items';
+  end if;
+
+  if input_total is null or input_total < 0 then
+    raise exception 'invalid_total';
+  end if;
+
+  if not exists (
+    select 1
+    from public.restaurant_tables as rt
+    where rt.id = input_table_id
+      and rt.is_active = true
+  ) then
+    raise exception 'table_inactive';
   end if;
 
   if not exists (
     select 1
     from public.order_sessions as os
-    join public.restaurant_tables as rt on rt.id = os.table_id
-    where os.id = order_session_id
-      and os.table_id = order_table_id
+    where os.id = input_session_id
+      and os.table_id = input_table_id
       and os.status = 'active'
       and os.expires_at > now()
-      and rt.is_active = true
   ) then
-    raise exception 'active table session is required';
+    raise exception 'session_invalid';
   end if;
 
   select o.*
   into existing_order
   from public.orders as o
-  where o.id = target_order_id
-    and o.table_id = order_table_id
-    and o.session_id = order_session_id
+  where o.id = input_order_id
+    and o.table_id = input_table_id
+    and o.session_id = input_session_id
   limit 1;
 
   if existing_order.id is null then
-    raise exception 'order not found';
+    raise exception 'order_not_found';
   end if;
 
   if existing_order.status <> 'pending' then
-    raise exception 'order is no longer editable';
+    raise exception 'order_not_editable';
   end if;
 
   if existing_order.editable_until is null or existing_order.editable_until <= now() then
-    raise exception 'order edit window has expired';
+    raise exception 'edit_window_expired';
   end if;
 
   update public.orders
   set
-    items = order_items,
-    total = order_total,
-    notes = nullif(trim(coalesce(order_notes, '')), '')
+    items = input_items,
+    total = input_total,
+    notes = nullif(trim(coalesce(input_notes, '')), '')
   where id = existing_order.id
   returning * into updated_order;
 

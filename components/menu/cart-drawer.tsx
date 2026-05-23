@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { useCart, useRestaurantData } from "@/context/restaurant-context"
 import {
+  getPublicOrderUpdateErrorMessage,
   updatePublicOrder,
   validateTableSession,
 } from "@/services/restaurant-service"
@@ -94,6 +95,8 @@ export function CartDrawer({
             items: orderItems,
             total: getCartTotal(),
             notes: editingOrder.notes || null,
+            status: editingOrder.status,
+            editableUntil: editingOrder.editableUntil,
           })
         : await addOrder({
         customerName: "Cliente",
@@ -117,7 +120,7 @@ export function CartDrawer({
       console.error(error)
       toast.error(
         editingOrder
-          ? "No se pudo actualizar la orden. Puede que ya no sea editable."
+          ? getPublicOrderUpdateErrorMessage(error)
           : "No se pudo guardar la orden. Intenta de nuevo."
       )
     } finally {
