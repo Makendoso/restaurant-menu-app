@@ -15,6 +15,8 @@ import {
   ChefHat,
   CheckCircle2,
   Package,
+  AlertCircle,
+  Ban,
 } from "lucide-react"
 import { OrderCard } from "@/components/orders/order-card"
 import { OrderDetails } from "@/components/orders/order-details"
@@ -35,9 +37,11 @@ export default function OrdersPage() {
   const statusCounts = useMemo(() => {
     return {
       all: orders.length,
+      pending: orders.filter((o) => o.status === "pending").length,
       preparing: orders.filter((o) => o.status === "preparing").length,
       ready: orders.filter((o) => o.status === "ready").length,
       delivered: orders.filter((o) => o.status === "delivered").length,
+      cancelled: orders.filter((o) => o.status === "cancelled").length,
     }
   }, [orders])
 
@@ -57,10 +61,12 @@ export default function OrdersPage() {
   }, [orders, filterStatus, searchQuery])
 
   const filters = [
-    { id: "all" as FilterStatus, label: "All", icon: Package, count: statusCounts.all },
-    { id: "preparing" as FilterStatus, label: "Preparing", icon: ChefHat, count: statusCounts.preparing },
-    { id: "ready" as FilterStatus, label: "Ready", icon: Clock, count: statusCounts.ready },
-    { id: "delivered" as FilterStatus, label: "Delivered", icon: CheckCircle2, count: statusCounts.delivered },
+    { id: "all" as FilterStatus, label: "Todas", icon: Package, count: statusCounts.all },
+    { id: "pending" as FilterStatus, label: "Pendiente", icon: AlertCircle, count: statusCounts.pending },
+    { id: "preparing" as FilterStatus, label: "Preparando", icon: ChefHat, count: statusCounts.preparing },
+    { id: "ready" as FilterStatus, label: "Lista", icon: Clock, count: statusCounts.ready },
+    { id: "delivered" as FilterStatus, label: "Entregada", icon: CheckCircle2, count: statusCounts.delivered },
+    { id: "cancelled" as FilterStatus, label: "Cancelada", icon: Ban, count: statusCounts.cancelled },
   ]
 
   return (
@@ -77,7 +83,7 @@ export default function OrdersPage() {
             </Link>
             <div>
               <h1 className="text-lg font-semibold">{settings.name}</h1>
-              <p className="text-sm text-muted-foreground">Orders Management</p>
+              <p className="text-sm text-muted-foreground">Gestion de ordenes</p>
             </div>
           </div>
           <Button
@@ -106,7 +112,7 @@ export default function OrdersPage() {
         <div className="relative mb-4">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Search by order #, name, or table..."
+            placeholder="Buscar por orden, cliente o mesa..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-10"
@@ -150,16 +156,16 @@ export default function OrdersPage() {
           {isLoading ? (
             <div className="flex flex-col items-center justify-center rounded-xl border bg-card py-16 text-center">
               <Package className="mb-4 h-12 w-12 text-muted-foreground/50" />
-              <h3 className="text-lg font-medium">Loading orders...</h3>
+              <h3 className="text-lg font-medium">Cargando ordenes...</h3>
             </div>
           ) : filteredOrders.length === 0 ? (
             <div className="flex flex-col items-center justify-center rounded-xl border bg-card py-16 text-center">
               <Package className="mb-4 h-12 w-12 text-muted-foreground/50" />
-              <h3 className="text-lg font-medium">No orders found</h3>
+              <h3 className="text-lg font-medium">No se encontraron ordenes</h3>
               <p className="mt-1 text-sm text-muted-foreground">
                 {searchQuery || filterStatus !== "all"
-                  ? "Try adjusting your search or filters"
-                  : "Orders will appear here when customers place them"}
+                  ? "Ajusta la busqueda o los filtros"
+                  : "Las ordenes apareceran aqui cuando los clientes las envien"}
               </p>
             </div>
           ) : (

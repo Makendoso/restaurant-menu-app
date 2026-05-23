@@ -14,6 +14,14 @@ import type {
 
 export type SettingsRow = RestaurantSettings & { id?: string }
 export type OrderInsert = Omit<Order, "id" | "orderNumber" | "createdAt">
+export type PublicOrderUpdateInput = {
+  orderId: string
+  tableId: string
+  sessionId: string
+  items: Order["items"]
+  total: number
+  notes?: string | null
+}
 
 type RestaurantTableRow = {
   id: string
@@ -44,6 +52,7 @@ type SessionRpcRow = {
 type OrderRow = Order & {
   table_id?: string | null
   session_id?: string | null
+  editable_until?: string | null
 }
 
 function mapRestaurantTable(row: RestaurantTableRow): RestaurantTable {
@@ -94,6 +103,7 @@ function mapOrder(row: OrderRow): Order {
     ...row,
     tableId: row.tableId ?? row.table_id ?? null,
     sessionId: row.sessionId ?? row.session_id ?? null,
+    editableUntil: row.editableUntil ?? row.editable_until ?? null,
   }
 }
 
@@ -303,7 +313,7 @@ export async function saveOrderStatus(orderId: string, status: OrderStatus) {
     .single()
 
   if (error) throw error
-  return data as Order
+  return mapOrder(data as OrderRow)
 }
 
 export async function saveOrderPayment(orderId: string, isPaid: boolean) {
@@ -317,7 +327,7 @@ export async function saveOrderPayment(orderId: string, isPaid: boolean) {
     .single()
 
   if (error) throw error
-  return data as Order
+  return mapOrder(data as OrderRow)
 }
 
 export async function createOrder(order: OrderInsert) {
@@ -328,6 +338,31 @@ export async function createOrder(order: OrderInsert) {
     order_items: order.items,
     order_total: order.total,
     order_notes: order.notes || null,
+  })
+
+  if (error) throw error
+  const row = Array.isArray(data) ? data[0] : data
+  return mapOrder(row as OrderRow)
+}
+
+export async function fetchPublicOrders(tableId: string, sessionId: string) {
+  const { data, error } = await supabase.rpc("get_public_session_orders", {
+    order_table_id: tableId,
+    order_session_id: sessionId,
+  })
+
+  if (error) throw error
+  return ((data || []) as OrderRow[]).map(mapOrder)
+}
+
+export async function updatePublicOrder(input: PublicOrderUpdateInput) {
+  const { data, error } = await supabase.rpc("update_public_order", {
+    target_order_id: input.orderId,
+    order_table_id: input.tableId,
+    order_session_id: input.sessionId,
+    order_items: input.items,
+    order_total: input.total,
+    order_notes: input.notes || null,
   })
 
   if (error) throw error

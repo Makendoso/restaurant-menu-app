@@ -22,6 +22,8 @@ import {
   ArrowRight,
   CreditCard,
   Banknote,
+  AlertCircle,
+  Ban,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
@@ -43,32 +45,44 @@ function formatDateTime(dateString: string) {
 }
 
 const statusConfig = {
+  pending: {
+    label: "Pendiente",
+    icon: AlertCircle,
+    className: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300",
+    nextLabel: "Aceptar orden",
+  },
   preparing: {
-    label: "Preparing",
+    label: "Preparando",
     icon: ChefHat,
     className: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
-    nextLabel: "Mark as Ready",
+    nextLabel: "Marcar como lista",
   },
   ready: {
-    label: "Ready",
+    label: "Lista",
     icon: Clock,
     className: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
-    nextLabel: "Mark as Delivered",
+    nextLabel: "Marcar como entregada",
   },
   delivered: {
-    label: "Delivered",
+    label: "Entregada",
     icon: CheckCircle2,
     className: "bg-muted text-muted-foreground",
+    nextLabel: null,
+  },
+  cancelled: {
+    label: "Cancelada",
+    icon: Ban,
+    className: "bg-destructive/10 text-destructive",
     nextLabel: null,
   },
 }
 
 export function OrderDetails({ order, onClose }: OrderDetailsProps) {
-  const { settings, advanceOrderStatus, toggleOrderPayment, orders } =
+  const { settings, advanceOrderStatus, updateOrderStatus, toggleOrderPayment, orders } =
     useRestaurantData()
-  const [pendingAction, setPendingAction] = useState<"status" | "payment" | null>(
-    null
-  )
+  const [pendingAction, setPendingAction] = useState<
+    "status" | "payment" | "cancel" | null
+  >(null)
 
   // Update order if it changes in context
   const currentOrder = order ? orders.find((o) => o.id === order.id) || order : null
@@ -117,6 +131,21 @@ export function OrderDetails({ order, onClose }: OrderDetailsProps) {
     }
   }
 
+  const handleCancelOrder = async () => {
+    setPendingAction("cancel")
+
+    try {
+      await updateOrderStatus(currentOrder.id, "cancelled")
+    } catch (error) {
+      console.error(error)
+      toast.error(
+        getRestaurantServiceErrorMessage(error, "No se pudo cancelar la orden")
+      )
+    } finally {
+      setPendingAction(null)
+    }
+  }
+
   return (
     <Sheet open={!!order} onOpenChange={() => onClose()}>
       <SheetContent className="flex w-full flex-col gap-0 p-5 pb-[calc(env(safe-area-inset-bottom)+1rem)] sm:max-w-lg sm:p-6">
@@ -139,6 +168,12 @@ export function OrderDetails({ order, onClose }: OrderDetailsProps) {
           <p className="text-sm text-muted-foreground">
             {formatDateTime(currentOrder.createdAt)}
           </p>
+          {currentOrder.status === "pending" && (
+            <p className="text-sm text-blue-700 dark:text-blue-300">
+              Pendiente: el cliente todavia puede modificarla hasta que la aceptes
+              o termine su ventana de edicion.
+            </p>
+          )}
         </SheetHeader>
 
         <div className="flex-1 overflow-y-auto py-5">
@@ -147,7 +182,7 @@ export function OrderDetails({ order, onClose }: OrderDetailsProps) {
             <div className="flex items-center gap-3">
               <User className="h-5 w-5 text-muted-foreground" />
               <div>
-                <p className="text-sm text-muted-foreground">Customer</p>
+                <p className="text-sm text-muted-foreground">Cliente</p>
                 <p className="font-medium">{currentOrder.customerName}</p>
               </div>
             </div>
@@ -155,8 +190,8 @@ export function OrderDetails({ order, onClose }: OrderDetailsProps) {
               <div className="flex items-center gap-3">
                 <Hash className="h-5 w-5 text-muted-foreground" />
                 <div>
-                  <p className="text-sm text-muted-foreground">Table</p>
-                  <p className="font-medium">Table {currentOrder.tableNumber}</p>
+                  <p className="text-sm text-muted-foreground">Mesa</p>
+                  <p className="font-medium">Mesa {currentOrder.tableNumber}</p>
                 </div>
               </div>
             )}
@@ -164,7 +199,7 @@ export function OrderDetails({ order, onClose }: OrderDetailsProps) {
               <div className="flex items-start gap-3">
                 <MessageSquare className="mt-0.5 h-5 w-5 text-muted-foreground" />
                 <div>
-                  <p className="text-sm text-muted-foreground">Notes</p>
+                  <p className="text-sm text-muted-foreground">Notas</p>
                   <p className="font-medium">{currentOrder.notes}</p>
                 </div>
               </div>
@@ -173,7 +208,7 @@ export function OrderDetails({ order, onClose }: OrderDetailsProps) {
 
           {/* Order Items */}
           <div className="space-y-3">
-            <h3 className="font-semibold">Order Items</h3>
+            <h3 className="font-semibold">Productos</h3>
             <div className="space-y-2">
               {currentOrder.items.map((item, index) => (
                 <div
@@ -218,7 +253,7 @@ export function OrderDetails({ order, onClose }: OrderDetailsProps) {
                 <Banknote className="h-5 w-5 text-amber-600 dark:text-amber-400" />
               )}
               <div>
-                <p className="font-medium">Payment Status</p>
+                <p className="font-medium">Estado de pago</p>
                 <p
                   className={cn(
                     "text-sm",
@@ -227,7 +262,7 @@ export function OrderDetails({ order, onClose }: OrderDetailsProps) {
                       : "text-amber-600 dark:text-amber-400"
                   )}
                 >
-                  {currentOrder.isPaid ? "Paid" : "Unpaid"}
+                  {currentOrder.isPaid ? "Pagada" : "Sin pagar"}
                 </p>
               </div>
             </div>
@@ -238,10 +273,10 @@ export function OrderDetails({ order, onClose }: OrderDetailsProps) {
               onClick={handleTogglePayment}
             >
               {pendingAction === "payment"
-                ? "Saving..."
+                ? "Guardando..."
                 : currentOrder.isPaid
-                  ? "Mark Unpaid"
-                  : "Mark Paid"}
+                  ? "Marcar sin pagar"
+                  : "Marcar pagada"}
             </Button>
           </div>
         </div>
@@ -255,12 +290,23 @@ export function OrderDetails({ order, onClose }: OrderDetailsProps) {
               disabled={pendingAction === "status"}
               onClick={handleAdvanceStatus}
             >
-              {pendingAction === "status" ? "Saving..." : status.nextLabel}
+              {pendingAction === "status" ? "Guardando..." : status.nextLabel}
               <ArrowRight className="h-4 w-4" />
             </Button>
           )}
+          {currentOrder.status !== "delivered" &&
+            currentOrder.status !== "cancelled" && (
+              <Button
+                variant="outline"
+                className="w-full"
+                disabled={pendingAction === "cancel"}
+                onClick={handleCancelOrder}
+              >
+                {pendingAction === "cancel" ? "Cancelando..." : "Cancelar orden"}
+              </Button>
+            )}
           <Button variant="outline" className="w-full" onClick={onClose}>
-            Close
+            Cerrar
           </Button>
         </div>
       </SheetContent>

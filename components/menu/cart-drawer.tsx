@@ -2,7 +2,8 @@
 
 import { useState } from "react"
 import { useCart, useRestaurantData } from "@/context/restaurant-context"
-import type { TableSessionState } from "@/types"
+import { updatePublicOrder } from "@/services/restaurant-service"
+import type { Order, TableSessionState } from "@/types"
 import {
   Sheet,
   SheetContent,
@@ -21,9 +22,19 @@ interface CartDrawerProps {
     canCreateOrder: boolean
     expiredMessage: string
   }
+  editingOrder?: Order | null
+  onOrderSaved?: (order: Order) => void
+  onCancelEdit?: () => void
 }
 
-export function CartDrawer({ open, onOpenChange, tableSession }: CartDrawerProps) {
+export function CartDrawer({
+  open,
+  onOpenChange,
+  tableSession,
+  editingOrder,
+  onOrderSaved,
+  onCancelEdit,
+}: CartDrawerProps) {
   const { settings, addOrder } = useRestaurantData()
   const { cart, updateQuantity, removeFromCart, clearCart, getCartTotal } =
     useCart()
@@ -36,7 +47,7 @@ export function CartDrawer({ open, onOpenChange, tableSession }: CartDrawerProps
     }).format(price)
   }
 
-  const handleCreateOrder = async () => {
+  const handleSaveOrder = async () => {
     if (cart.length === 0) {
       toast.error("Your cart is empty")
       return
@@ -50,27 +61,47 @@ export function CartDrawer({ open, onOpenChange, tableSession }: CartDrawerProps
     setIsSubmitting(true)
 
     try {
-      const savedOrder = await addOrder({
+      const orderItems = cart.map((item) => ({
+        productId: item.product.id,
+        productName: item.product.name,
+        quantity: item.quantity,
+        price: item.product.price,
+      }))
+
+      const savedOrder = editingOrder
+        ? await updatePublicOrder({
+            orderId: editingOrder.id,
+            tableId: tableSession.table?.id || "",
+            sessionId: tableSession.session.id,
+            items: orderItems,
+            total: getCartTotal(),
+            notes: editingOrder.notes || null,
+          })
+        : await addOrder({
         customerName: "Cliente",
-        items: cart.map((item) => ({
-          productId: item.product.id,
-          productName: item.product.name,
-          quantity: item.quantity,
-          price: item.product.price,
-        })),
+        items: orderItems,
         total: getCartTotal(),
-        status: "preparing",
+        status: "pending",
         isPaid: false,
         tableId: tableSession.table?.id,
         sessionId: tableSession.session.id,
       })
 
       clearCart()
+      onOrderSaved?.(savedOrder)
       onOpenChange(false)
-      toast.success(`Orden #${savedOrder.orderNumber} enviada`)
+      toast.success(
+        editingOrder
+          ? `Orden #${savedOrder.orderNumber} actualizada`
+          : `Orden #${savedOrder.orderNumber} enviada. Puedes corregirla durante unos minutos antes de que el restaurante la acepte.`
+      )
     } catch (error) {
       console.error(error)
-      toast.error("No se pudo guardar la orden. Intenta de nuevo.")
+      toast.error(
+        editingOrder
+          ? "No se pudo actualizar la orden. Puede que ya no sea editable."
+          : "No se pudo guardar la orden. Intenta de nuevo."
+      )
     } finally {
       setIsSubmitting(false)
     }
@@ -82,7 +113,7 @@ export function CartDrawer({ open, onOpenChange, tableSession }: CartDrawerProps
         <SheetHeader className="border-b pb-4">
           <SheetTitle className="flex items-center gap-2 text-xl">
             <ShoppingBag className="h-5 w-5" />
-            Your Order
+            {editingOrder ? `Modificar orden #${editingOrder.orderNumber}` : "Your Order"}
           </SheetTitle>
         </SheetHeader>
 
@@ -191,24 +222,34 @@ export function CartDrawer({ open, onOpenChange, tableSession }: CartDrawerProps
               
               <div className="flex flex-col gap-2">
                 <Button
-                  onClick={handleCreateOrder}
+                  onClick={handleSaveOrder}
                   size="lg"
                   disabled={isSubmitting || !tableSession.canCreateOrder}
                   className="w-full gap-2 rounded-xl text-base"
                 >
                   <Send className="h-5 w-5" />
-                  {isSubmitting ? "Enviando orden..." : "Enviar orden"}
+                  {isSubmitting
+                    ? editingOrder
+                      ? "Guardando cambios..."
+                      : "Enviando orden..."
+                    : editingOrder
+                      ? "Guardar cambios"
+                      : "Enviar orden"}
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => {
                     clearCart()
-                    toast.info("Cart cleared")
+                    if (editingOrder) {
+                      onCancelEdit?.()
+                    } else {
+                      toast.info("Cart cleared")
+                    }
                   }}
                   className="w-full"
                 >
-                  Clear Cart
+                  {editingOrder ? "Cancelar cambios" : "Clear Cart"}
                 </Button>
               </div>
             </div>

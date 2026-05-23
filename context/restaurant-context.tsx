@@ -74,6 +74,7 @@ interface CartContextType {
   addToCart: (product: Product) => void
   removeFromCart: (productId: string) => void
   updateQuantity: (productId: string, quantity: number) => void
+  replaceCart: (items: CartItem[]) => void
   clearCart: () => void
   getCartTotal: () => number
   getCartCount: () => number
@@ -94,7 +95,12 @@ function normalizeSettings(row: SettingsRow | null): RestaurantSettings {
 }
 
 function getNextOrderStatus(status: OrderStatus): OrderStatus {
-  const statusOrder: OrderStatus[] = ["preparing", "ready", "delivered"]
+  const statusOrder: OrderStatus[] = [
+    "pending",
+    "preparing",
+    "ready",
+    "delivered",
+  ]
   const currentIndex = statusOrder.indexOf(status)
   return statusOrder[Math.min(currentIndex + 1, statusOrder.length - 1)]
 }
@@ -426,6 +432,8 @@ function CartProvider({ children }: { children: ReactNode }) {
     )
   }, [removeFromCart])
 
+  const replaceCart = useCallback((items: CartItem[]) => setCart(items), [])
+
   const clearCart = useCallback(() => setCart([]), [])
 
   const getCartTotal = useCallback(
@@ -448,6 +456,7 @@ function CartProvider({ children }: { children: ReactNode }) {
       addToCart,
       removeFromCart,
       updateQuantity,
+      replaceCart,
       clearCart,
       getCartTotal,
       getCartCount,
@@ -457,6 +466,7 @@ function CartProvider({ children }: { children: ReactNode }) {
       addToCart,
       removeFromCart,
       updateQuantity,
+      replaceCart,
       clearCart,
       getCartTotal,
       getCartCount,

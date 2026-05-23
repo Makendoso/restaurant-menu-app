@@ -31,7 +31,12 @@ export interface RestaurantSettings {
   logo?: string
 }
 
-export type OrderStatus = "preparing" | "ready" | "delivered"
+export type OrderStatus =
+  | "pending"
+  | "preparing"
+  | "ready"
+  | "delivered"
+  | "cancelled"
 export type OrderSessionStatus = "active" | "closed" | "expired"
 
 export interface OrderItem {
@@ -54,6 +59,7 @@ export interface Order {
   status: OrderStatus
   isPaid: boolean
   notes?: string
+  editableUntil?: string | null
   createdAt: string
 }
 

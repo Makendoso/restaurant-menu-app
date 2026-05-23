@@ -2,14 +2,16 @@
 
 import { Suspense, useMemo, useState } from "react"
 import { useSearchParams } from "next/navigation"
-import { useRestaurantData } from "@/context/restaurant-context"
+import { useCart, useRestaurantData } from "@/context/restaurant-context"
 import { useTableSession } from "@/hooks/use-table-session"
+import type { CartItem, Order } from "@/types"
 
 import { Navbar } from "@/components/menu/navbar"
 import { CategoryFilter } from "@/components/menu/category-filter"
 import { ProductCard } from "@/components/menu/product-card"
 import { ProductGridSkeleton } from "@/components/menu/product-skeleton"
 import { CartDrawer } from "@/components/menu/cart-drawer"
+import { TableOrders } from "@/components/menu/table-orders"
 
 import { Search } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
@@ -17,6 +19,7 @@ import { Badge } from "@/components/ui/badge"
 function MenuPageContent() {
   const { settings, products, categories, isLoading, error } =
     useRestaurantData()
+  const { clearCart, replaceCart } = useCart()
   const searchParams = useSearchParams()
   const qrToken = searchParams.get("t")
   const tableSession = useTableSession(qrToken)
@@ -24,6 +27,8 @@ function MenuPageContent() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
   const [isCartOpen, setIsCartOpen] = useState(false)
+  const [editingOrder, setEditingOrder] = useState<Order | null>(null)
+  const [ordersRefreshKey, setOrdersRefreshKey] = useState(0)
 
   const filteredProducts = useMemo(() => {
     return products.filter((product) => {
@@ -47,6 +52,22 @@ function MenuPageContent() {
     const category = categories.find((item) => item.id === categoryId)
 
     return category?.name || "All Items"
+  }
+
+  const handleEditOrder = (order: Order, items: CartItem[]) => {
+    setEditingOrder(order)
+    replaceCart(items)
+    setIsCartOpen(true)
+  }
+
+  const handleCancelEdit = () => {
+    setEditingOrder(null)
+    setIsCartOpen(false)
+  }
+
+  const handleOrderSaved = () => {
+    setEditingOrder(null)
+    setOrdersRefreshKey((value) => value + 1)
   }
 
   return (
@@ -86,6 +107,17 @@ function MenuPageContent() {
             onSelectCategory={setSelectedCategory}
           />
         </section>
+
+        {tableSession.status === "ready" && (
+          <TableOrders
+            tableId={tableSession.table?.id}
+            sessionId={tableSession.session?.id}
+            products={products}
+            settings={settings}
+            refreshKey={ordersRefreshKey}
+            onEditOrder={handleEditOrder}
+          />
+        )}
 
         <section>
           <div className="mb-4 flex items-center justify-between">
@@ -144,8 +176,17 @@ function MenuPageContent() {
 
       <CartDrawer
         open={isCartOpen}
-        onOpenChange={setIsCartOpen}
+        onOpenChange={(open) => {
+          setIsCartOpen(open)
+          if (!open && editingOrder) {
+            setEditingOrder(null)
+            clearCart()
+          }
+        }}
         tableSession={tableSession}
+        editingOrder={editingOrder}
+        onOrderSaved={handleOrderSaved}
+        onCancelEdit={handleCancelEdit}
       />
     </div>
   )

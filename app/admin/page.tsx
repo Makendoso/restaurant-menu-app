@@ -30,7 +30,7 @@ export default function AdminPage() {
   const [activeTab, setActiveTab] = useState<Tab>("products")
 
   const activeOrdersCount = orders.filter(
-    (o) => o.status === "preparing" || o.status === "ready"
+    (o) => o.status === "pending" || o.status === "preparing" || o.status === "ready"
   ).length
 
   const tabs = [

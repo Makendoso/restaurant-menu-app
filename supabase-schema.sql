@@ -54,18 +54,30 @@ create table if not exists public.orders (
   "tableNumber" text,
   items jsonb not null default '[]'::jsonb,
   total numeric not null check (total >= 0),
-  status text not null default 'preparing'
-    check (status in ('preparing', 'ready', 'delivered')),
+  status text not null default 'pending'
+    check (status in ('pending', 'preparing', 'ready', 'delivered', 'cancelled')),
   "isPaid" boolean not null default false,
   notes text,
   table_id uuid references public.restaurant_tables(id) on delete set null,
   session_id uuid references public.order_sessions(id) on delete set null,
+  editable_until timestamptz,
   "createdAt" timestamptz not null default now()
 );
 
 alter table public.orders
   add column if not exists table_id uuid references public.restaurant_tables(id) on delete set null,
-  add column if not exists session_id uuid references public.order_sessions(id) on delete set null;
+  add column if not exists session_id uuid references public.order_sessions(id) on delete set null,
+  add column if not exists editable_until timestamptz;
+
+alter table public.orders
+  alter column status set default 'pending';
+
+alter table public.orders
+  drop constraint if exists orders_status_check;
+
+alter table public.orders
+  add constraint orders_status_check
+  check (status in ('pending', 'preparing', 'ready', 'delivered', 'cancelled'));
 
 select setval(
   'public.order_number_seq',
@@ -270,6 +282,7 @@ returns table (
   status text,
   "isPaid" boolean,
   notes text,
+  editable_until timestamptz,
   "createdAt" timestamptz
 )
 language plpgsql
@@ -336,7 +349,8 @@ begin
     total,
     status,
     "isPaid",
-    notes
+    notes,
+    editable_until
   )
   values (
     trim(customer_name),
@@ -345,9 +359,10 @@ begin
     active_session.id,
     order_items,
     order_total,
-    'preparing',
+    'pending',
     false,
-    nullif(trim(coalesce(order_notes, '')), '')
+    nullif(trim(coalesce(order_notes, '')), ''),
+    now() + interval '3 minutes'
   )
   returning * into inserted_order;
 
@@ -364,12 +379,190 @@ begin
       inserted_order.status,
       inserted_order."isPaid",
       inserted_order.notes,
+      inserted_order.editable_until,
       inserted_order."createdAt";
 end;
 $$;
 
 grant execute on function public.create_public_order(
   text,
+  uuid,
+  uuid,
+  jsonb,
+  numeric,
+  text
+) to anon, authenticated;
+
+drop function if exists public.get_public_session_orders(uuid, uuid);
+
+create or replace function public.get_public_session_orders(
+  order_table_id uuid,
+  order_session_id uuid
+)
+returns table (
+  id uuid,
+  "orderNumber" integer,
+  "customerName" text,
+  "tableNumber" text,
+  table_id uuid,
+  session_id uuid,
+  items jsonb,
+  total numeric,
+  status text,
+  "isPaid" boolean,
+  notes text,
+  editable_until timestamptz,
+  "createdAt" timestamptz
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  perform public.expire_order_sessions();
+
+  if not exists (
+    select 1
+    from public.order_sessions as os
+    join public.restaurant_tables as rt on rt.id = os.table_id
+    where os.id = order_session_id
+      and os.table_id = order_table_id
+      and os.status = 'active'
+      and os.expires_at > now()
+      and rt.is_active = true
+  ) then
+    raise exception 'active table session is required';
+  end if;
+
+  return query
+    select
+      o.id,
+      o."orderNumber",
+      o."customerName",
+      o."tableNumber",
+      o.table_id,
+      o.session_id,
+      o.items,
+      o.total,
+      o.status,
+      o."isPaid",
+      o.notes,
+      o.editable_until,
+      o."createdAt"
+    from public.orders as o
+    where o.table_id = order_table_id
+      and o.session_id = order_session_id
+      and o.status in ('pending', 'preparing', 'ready', 'delivered', 'cancelled')
+    order by o."createdAt" desc;
+end;
+$$;
+
+grant execute on function public.get_public_session_orders(uuid, uuid) to anon, authenticated;
+
+drop function if exists public.update_public_order(uuid, uuid, uuid, jsonb, numeric, text);
+
+create or replace function public.update_public_order(
+  target_order_id uuid,
+  order_table_id uuid,
+  order_session_id uuid,
+  order_items jsonb,
+  order_total numeric,
+  order_notes text default null
+)
+returns table (
+  id uuid,
+  "orderNumber" integer,
+  "customerName" text,
+  "tableNumber" text,
+  table_id uuid,
+  session_id uuid,
+  items jsonb,
+  total numeric,
+  status text,
+  "isPaid" boolean,
+  notes text,
+  editable_until timestamptz,
+  "createdAt" timestamptz
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  existing_order public.orders%rowtype;
+  updated_order public.orders%rowtype;
+begin
+  perform public.expire_order_sessions();
+
+  if order_items is null or jsonb_typeof(order_items) <> 'array' or jsonb_array_length(order_items) = 0 then
+    raise exception 'order_items must be a non-empty array';
+  end if;
+
+  if order_total is null or order_total < 0 then
+    raise exception 'order_total must be zero or greater';
+  end if;
+
+  if not exists (
+    select 1
+    from public.order_sessions as os
+    join public.restaurant_tables as rt on rt.id = os.table_id
+    where os.id = order_session_id
+      and os.table_id = order_table_id
+      and os.status = 'active'
+      and os.expires_at > now()
+      and rt.is_active = true
+  ) then
+    raise exception 'active table session is required';
+  end if;
+
+  select o.*
+  into existing_order
+  from public.orders as o
+  where o.id = target_order_id
+    and o.table_id = order_table_id
+    and o.session_id = order_session_id
+  limit 1;
+
+  if existing_order.id is null then
+    raise exception 'order not found';
+  end if;
+
+  if existing_order.status <> 'pending' then
+    raise exception 'order is no longer editable';
+  end if;
+
+  if existing_order.editable_until is null or existing_order.editable_until <= now() then
+    raise exception 'order edit window has expired';
+  end if;
+
+  update public.orders
+  set
+    items = order_items,
+    total = order_total,
+    notes = nullif(trim(coalesce(order_notes, '')), '')
+  where id = existing_order.id
+  returning * into updated_order;
+
+  return query
+    select
+      updated_order.id,
+      updated_order."orderNumber",
+      updated_order."customerName",
+      updated_order."tableNumber",
+      updated_order.table_id,
+      updated_order.session_id,
+      updated_order.items,
+      updated_order.total,
+      updated_order.status,
+      updated_order."isPaid",
+      updated_order.notes,
+      updated_order.editable_until,
+      updated_order."createdAt";
+end;
+$$;
+
+grant execute on function public.update_public_order(
+  uuid,
   uuid,
   uuid,
   jsonb,
