@@ -6,7 +6,7 @@ import { startOrResumeTableSession } from "@/services/restaurant-service"
 
 const STORAGE_KEY = "restaurant_table_session"
 const EXPIRED_MESSAGE =
-  "La sesion de esta mesa expiro. Escanea nuevamente el QR o solicita ayuda al personal."
+  "La sesión de esta mesa expiró. Escanea nuevamente el QR o solicita ayuda al personal."
 
 type StoredSession = {
   qrToken: string
@@ -113,9 +113,16 @@ export function useTableSession(qrToken: string | null) {
       state.status === "ready" &&
       state.session?.status === "active" &&
       new Date(state.session.expiresAt).getTime() > currentTime
+    const isExpired =
+      state.session &&
+      (state.session.status === "expired" ||
+        new Date(state.session.expiresAt).getTime() <= currentTime)
+    const status = isExpired ? "expired" : state.status
 
     return {
       ...state,
+      status,
+      message: isExpired ? EXPIRED_MESSAGE : state.message,
       canCreateOrder: Boolean(isActive),
       expiredMessage: EXPIRED_MESSAGE,
     }

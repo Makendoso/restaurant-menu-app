@@ -248,9 +248,11 @@ grant execute on function public.start_or_resume_order_session(
 
 drop function if exists public.create_public_order(text, text, jsonb, numeric, text);
 drop function if exists public.create_public_order(text, uuid, jsonb, numeric, text);
+drop function if exists public.create_public_order(text, uuid, uuid, jsonb, numeric, text);
 
 create or replace function public.create_public_order(
   customer_name text,
+  order_table_id uuid,
   order_session_id uuid,
   order_items jsonb,
   order_total numeric,
@@ -277,7 +279,6 @@ as $$
 declare
   active_session public.order_sessions%rowtype;
   active_table public.restaurant_tables%rowtype;
-  existing_orders integer;
   inserted_order public.orders%rowtype;
 begin
   perform public.expire_order_sessions();
@@ -294,10 +295,19 @@ begin
     raise exception 'order_total must be zero or greater';
   end if;
 
+  if order_table_id is null then
+    raise exception 'table_id is required';
+  end if;
+
+  if order_session_id is null then
+    raise exception 'session_id is required';
+  end if;
+
   select os.*
   into active_session
   from public.order_sessions as os
   where os.id = order_session_id
+    and os.table_id = order_table_id
     and os.status = 'active'
     and os.expires_at > now()
   limit 1;
@@ -309,18 +319,13 @@ begin
   select rt.*
   into active_table
   from public.restaurant_tables as rt
-  where rt.id = active_session.table_id
+  where rt.id = order_table_id
     and rt.is_active = true
   limit 1;
 
   if active_table.id is null then
     raise exception 'active table is required';
   end if;
-
-  select count(*)
-  into existing_orders
-  from public.orders as existing_order
-  where existing_order.session_id = active_session.id;
 
   insert into public.orders (
     "customerName",
@@ -346,12 +351,6 @@ begin
   )
   returning * into inserted_order;
 
-  if existing_orders = 0 then
-    update public.order_sessions as os
-    set expires_at = now() + interval '15 minutes'
-    where os.id = active_session.id;
-  end if;
-
   return query
     select
       inserted_order.id,
@@ -371,6 +370,7 @@ $$;
 
 grant execute on function public.create_public_order(
   text,
+  uuid,
   uuid,
   jsonb,
   numeric,

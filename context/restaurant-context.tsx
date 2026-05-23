@@ -26,9 +26,9 @@ import {
   createOrder,
   createProduct,
   createRestaurantTable,
+  createOrderSessionForTable,
   fetchRestaurantData,
   closeOrderSession,
-  reactivateOrderSession,
   removeCategory,
   removeProduct,
   saveCategory,
@@ -54,7 +54,7 @@ interface RestaurantDataContextType {
   addTable: (number: number) => Promise<void>
   setTableActive: (tableId: string, isActive: boolean) => Promise<void>
   closeSession: (sessionId: string) => Promise<void>
-  reactivateSession: (sessionId: string) => Promise<void>
+  createSessionForTable: (tableId: string) => Promise<void>
   addProduct: (product: Omit<Product, "id">) => Promise<void>
   updateProduct: (id: string, product: Partial<Product>) => Promise<void>
   deleteProduct: (id: string) => Promise<void>
@@ -174,13 +174,16 @@ function RestaurantDataProvider({ children }: { children: ReactNode }) {
     )
   }, [])
 
-  const reactivateSession = useCallback(async (sessionId: string) => {
-    const updatedSession = await reactivateOrderSession(sessionId)
-    setSessions((prev) =>
-      prev.map((session) =>
-        session.id === sessionId ? updatedSession : session
-      )
-    )
+  const createSessionForTable = useCallback(async (tableId: string) => {
+    const createdSession = await createOrderSessionForTable(tableId)
+    setSessions((prev) => [
+      createdSession,
+      ...prev.map((session) =>
+        session.tableId === tableId && session.status === "active"
+          ? { ...session, status: "closed" as const }
+          : session
+      ),
+    ])
   }, [])
 
   const updateProduct = useCallback(
@@ -300,7 +303,7 @@ function RestaurantDataProvider({ children }: { children: ReactNode }) {
       addTable,
       setTableActive,
       closeSession,
-      reactivateSession,
+      createSessionForTable,
       addProduct,
       updateProduct,
       deleteProduct,
@@ -327,7 +330,7 @@ function RestaurantDataProvider({ children }: { children: ReactNode }) {
       addTable,
       setTableActive,
       closeSession,
-      reactivateSession,
+      createSessionForTable,
       addProduct,
       updateProduct,
       deleteProduct,

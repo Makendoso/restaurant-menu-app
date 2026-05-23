@@ -323,7 +323,8 @@ export async function saveOrderPayment(orderId: string, isPaid: boolean) {
 export async function createOrder(order: OrderInsert) {
   const { data, error } = await supabase.rpc("create_public_order", {
     customer_name: order.customerName,
-    order_session_id: order.sessionId,
+    order_table_id: order.tableId || null,
+    order_session_id: order.sessionId || null,
     order_items: order.items,
     order_total: order.total,
     order_notes: order.notes || null,
@@ -402,14 +403,21 @@ export async function closeOrderSession(sessionId: string) {
   return mapOrderSession(data as OrderSessionRow)
 }
 
-export async function reactivateOrderSession(sessionId: string) {
-  await requireAdminSession("reactivar sesiones")
+export async function createOrderSessionForTable(tableId: string) {
+  await requireAdminSession("crear sesiones")
+
+  const { error: closeError } = await supabase
+    .from("order_sessions")
+    .update({ status: "closed" })
+    .eq("table_id", tableId)
+    .eq("status", "active")
+
+  if (closeError) throw closeError
 
   const expiresAt = new Date(Date.now() + 90 * 60 * 1000).toISOString()
   const { data, error } = await supabase
     .from("order_sessions")
-    .update({ status: "active", expires_at: expiresAt })
-    .eq("id", sessionId)
+    .insert({ table_id: tableId, status: "active", expires_at: expiresAt })
     .select("*")
     .single()
 
