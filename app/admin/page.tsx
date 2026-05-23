@@ -9,19 +9,18 @@ import {
   ArrowLeft,
   Package,
   FolderOpen,
-  Settings,
+  Store,
   Moon,
   Sun,
-  Plus,
   ClipboardList,
 } from "lucide-react"
 import { ProductsTab } from "@/components/admin/products-tab"
 import { CategoriesTab } from "@/components/admin/categories-tab"
-import { SettingsTab } from "@/components/admin/settings-tab"
+import { RestaurantProfileTab } from "@/components/admin/restaurant-profile-tab"
 import { LogoutButton } from "@/components/admin/logout-button"
 import { cn } from "@/lib/utils"
 
-type Tab = "products" | "categories" | "settings"
+type Tab = "products" | "categories" | "profile"
 
 export default function AdminPage() {
   const { settings, orders, isLoading, error, refreshData } = useRestaurantData()
@@ -35,7 +34,7 @@ export default function AdminPage() {
   const tabs = [
     { id: "products" as Tab, label: "Products", icon: Package },
     { id: "categories" as Tab, label: "Categories", icon: FolderOpen },
-    { id: "settings" as Tab, label: "Settings", icon: Settings },
+    { id: "profile" as Tab, label: "Perfil del restaurante", icon: Store },
   ]
 
   return (
@@ -122,7 +121,7 @@ export default function AdminPage() {
             <>
               {activeTab === "products" && <ProductsTab />}
               {activeTab === "categories" && <CategoriesTab />}
-              {activeTab === "settings" && <SettingsTab />}
+              {activeTab === "profile" && <RestaurantProfileTab />}
             </>
           )}
         </div>

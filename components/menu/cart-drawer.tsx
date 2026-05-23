@@ -9,7 +9,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
-import { Minus, Plus, Trash2, ShoppingBag, MessageCircle } from "lucide-react"
+import { Minus, Plus, Trash2, ShoppingBag, Send } from "lucide-react"
 import Image from "next/image"
 import { toast } from "sonner"
 
@@ -31,28 +31,7 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
     }).format(price)
   }
 
-  const generateWhatsAppMessage = (orderNumber?: number) => {
-    if (cart.length === 0) return ""
-
-    let message = `Hello! I would like to place an order`
-
-    if (orderNumber) {
-      message += ` #${orderNumber}`
-    }
-
-    message += `:\n\n`
-    
-    cart.forEach((item) => {
-      message += `${item.quantity}x ${item.product.name} - ${formatPrice(item.product.price * item.quantity)}\n`
-    })
-    
-    message += `\n*Total: ${formatPrice(getCartTotal())}*`
-    message += `\n\nThank you!`
-    
-    return encodeURIComponent(message)
-  }
-
-  const handleWhatsAppOrder = async () => {
+  const handleCreateOrder = async () => {
     if (cart.length === 0) {
       toast.error("Your cart is empty")
       return
@@ -62,7 +41,7 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
 
     try {
       const savedOrder = await addOrder({
-        customerName: "WhatsApp Customer",
+        customerName: "Cliente",
         items: cart.map((item) => ({
           productId: item.product.id,
           productName: item.product.name,
@@ -74,16 +53,12 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
         isPaid: false,
       })
 
-      const message = generateWhatsAppMessage(savedOrder.orderNumber)
-      const whatsappUrl = `https://wa.me/${settings.whatsappNumber}?text=${message}`
-
-      window.open(whatsappUrl, "_blank")
       clearCart()
       onOpenChange(false)
-      toast.success(`Order #${savedOrder.orderNumber} saved`)
+      toast.success(`Orden #${savedOrder.orderNumber} enviada`)
     } catch (error) {
       console.error(error)
-      toast.error("Could not save the order. Please try again.")
+      toast.error("No se pudo guardar la orden. Intenta de nuevo.")
     } finally {
       setIsSubmitting(false)
     }
@@ -199,13 +174,13 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
               
               <div className="flex flex-col gap-2">
                 <Button
-                  onClick={handleWhatsAppOrder}
+                  onClick={handleCreateOrder}
                   size="lg"
                   disabled={isSubmitting}
                   className="w-full gap-2 rounded-xl text-base"
                 >
-                  <MessageCircle className="h-5 w-5" />
-                  {isSubmitting ? "Saving order..." : "Order via WhatsApp"}
+                  <Send className="h-5 w-5" />
+                  {isSubmitting ? "Enviando orden..." : "Enviar orden"}
                 </Button>
                 <Button
                   variant="outline"

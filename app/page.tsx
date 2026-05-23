@@ -8,7 +8,6 @@ import { CategoryFilter } from "@/components/menu/category-filter"
 import { ProductCard } from "@/components/menu/product-card"
 import { ProductGridSkeleton } from "@/components/menu/product-skeleton"
 import { CartDrawer } from "@/components/menu/cart-drawer"
-import { WhatsAppFab } from "@/components/menu/whatsapp-fab"
 
 import { Search } from "lucide-react"
 
@@ -59,8 +58,7 @@ export default function MenuPage() {
           </h1>
 
           <p className="mt-2 text-muted-foreground">
-            Explora nuestro menú y haz tu pedido directamente a través de
-            WhatsApp
+            Explora nuestro menu y haz tu pedido directamente desde aqui.
           </p>
         </section>
 
@@ -85,7 +83,7 @@ export default function MenuPage() {
 
           {error ? (
             <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed bg-muted/30 py-16 text-center">
-              <h3 className="text-lg font-semibold">No pudimos cargar el menú</h3>
+              <h3 className="text-lg font-semibold">No pudimos cargar el menu</h3>
               <p className="mt-1 text-sm text-muted-foreground">{error}</p>
             </div>
           ) : isLoading ? (
@@ -127,8 +125,6 @@ export default function MenuPage() {
       </main>
 
       <CartDrawer open={isCartOpen} onOpenChange={setIsCartOpen} />
-
-      <WhatsAppFab />
     </div>
   )
 }

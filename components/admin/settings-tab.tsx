@@ -3,7 +3,6 @@
 import { useState } from "react"
 import { useRestaurantData } from "@/context/restaurant-context"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
   Select,
@@ -12,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Store, Phone, DollarSign, Save } from "lucide-react"
+import { DollarSign, Save } from "lucide-react"
 import { toast } from "sonner"
 
 const currencies = [
@@ -30,41 +29,20 @@ const currencies = [
 export function SettingsTab() {
   const { settings, updateSettings } = useRestaurantData()
   const [formData, setFormData] = useState({
-    name: settings.name,
-    whatsappNumber: settings.whatsappNumber,
     currency: settings.currency,
   })
   const [isSaving, setIsSaving] = useState(false)
-  const hasChanges =
-    formData.name !== settings.name ||
-    formData.whatsappNumber !== settings.whatsappNumber ||
-    formData.currency !== settings.currency
+  const hasChanges = formData.currency !== settings.currency
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault()
+
     const nextSettings = {
-      name: formData.name.trim(),
-      whatsappNumber: formData.whatsappNumber.replace(/\D/g, ""),
       currency: formData.currency,
     }
 
-    if (!nextSettings.name) {
-      toast.error("Restaurant name is required")
-      return
-    }
-
-    if (!nextSettings.whatsappNumber) {
-      toast.error("WhatsApp number is required")
-      return
-    }
-
-    if (nextSettings.whatsappNumber.length < 10) {
-      toast.error("WhatsApp number must include country code")
-      return
-    }
-
     if (!currencies.some((currency) => currency.value === nextSettings.currency)) {
-      toast.error("Please select a supported currency")
+      toast.error("Selecciona una moneda soportada")
       return
     }
 
@@ -73,10 +51,10 @@ export function SettingsTab() {
     try {
       await updateSettings(nextSettings)
       setFormData(nextSettings)
-      toast.success("Settings saved successfully")
+      toast.success("Settings privados guardados")
     } catch (error) {
       console.error(error)
-      toast.error("Could not save settings")
+      toast.error("No se pudieron guardar los settings")
     } finally {
       setIsSaving(false)
     }
@@ -85,54 +63,17 @@ export function SettingsTab() {
   return (
     <div>
       <div className="mb-6">
-        <h2 className="text-xl font-semibold">Settings</h2>
+        <h2 className="text-xl font-semibold">Settings privados</h2>
         <p className="text-sm text-muted-foreground">
-          Configure your restaurant details
+          Ajustes internos disponibles solo para superadmin.
         </p>
       </div>
 
       <form onSubmit={handleSubmit} className="max-w-lg space-y-6">
-        {/* Restaurant Name */}
-        <div className="space-y-2">
-          <Label htmlFor="name" className="flex items-center gap-2">
-            <Store className="h-4 w-4" />
-            Restaurant Name
-          </Label>
-          <Input
-            id="name"
-            value={formData.name}
-            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            placeholder="Your restaurant name"
-          />
-          <p className="text-xs text-muted-foreground">
-            This will be displayed in the menu header
-          </p>
-        </div>
-
-        {/* WhatsApp Number */}
-        <div className="space-y-2">
-          <Label htmlFor="whatsapp" className="flex items-center gap-2">
-            <Phone className="h-4 w-4" />
-            WhatsApp Number
-          </Label>
-          <Input
-            id="whatsapp"
-            value={formData.whatsappNumber}
-            onChange={(e) =>
-              setFormData({ ...formData, whatsappNumber: e.target.value })
-            }
-            placeholder="5210000000000"
-          />
-          <p className="text-xs text-muted-foreground">
-            Include country code without + sign (e.g., 5210000000000 for Mexico)
-          </p>
-        </div>
-
-        {/* Currency */}
         <div className="space-y-2">
           <Label htmlFor="currency" className="flex items-center gap-2">
             <DollarSign className="h-4 w-4" />
-            Currency
+            Moneda
           </Label>
           <Select
             value={formData.currency}
@@ -141,7 +82,7 @@ export function SettingsTab() {
             }
           >
             <SelectTrigger>
-              <SelectValue placeholder="Select currency" />
+              <SelectValue placeholder="Selecciona moneda" />
             </SelectTrigger>
             <SelectContent>
               {currencies.map((currency) => (
@@ -152,18 +93,17 @@ export function SettingsTab() {
             </SelectContent>
           </Select>
           <p className="text-xs text-muted-foreground">
-            This will be used for displaying prices
+            Se usa para mostrar precios en el menu, carrito y ordenes.
           </p>
         </div>
 
-        {/* Save Button */}
         <Button
           type="submit"
           disabled={!hasChanges || isSaving}
           className="w-full"
         >
           <Save className="mr-2 h-4 w-4" />
-          {isSaving ? "Saving..." : "Save Changes"}
+          {isSaving ? "Guardando..." : "Guardar cambios"}
         </Button>
       </form>
     </div>
