@@ -3,13 +3,99 @@ import type {
   Category,
   CreateCategoryInput,
   Order,
+  OrderSession,
+  OrderSessionStatus,
   OrderStatus,
   Product,
+  RestaurantTable,
   RestaurantSettings,
+  TableSessionState,
 } from "@/types"
 
 export type SettingsRow = RestaurantSettings & { id?: string }
 export type OrderInsert = Omit<Order, "id" | "orderNumber" | "createdAt">
+
+type RestaurantTableRow = {
+  id: string
+  number: number
+  qr_token: string
+  is_active: boolean
+  created_at: string
+}
+
+type OrderSessionRow = {
+  id: string
+  table_id: string
+  status: OrderSessionStatus
+  started_at: string
+  expires_at: string
+  created_at: string
+}
+
+type SessionRpcRow = {
+  session_id: string
+  table_id: string
+  table_number: number
+  session_status: OrderSessionStatus
+  started_at: string
+  expires_at: string
+}
+
+type OrderRow = Order & {
+  table_id?: string | null
+  session_id?: string | null
+}
+
+function mapRestaurantTable(row: RestaurantTableRow): RestaurantTable {
+  return {
+    id: row.id,
+    number: row.number,
+    qrToken: row.qr_token,
+    isActive: row.is_active,
+    createdAt: row.created_at,
+  }
+}
+
+function mapOrderSession(row: OrderSessionRow): OrderSession {
+  return {
+    id: row.id,
+    tableId: row.table_id,
+    status: row.status,
+    startedAt: row.started_at,
+    expiresAt: row.expires_at,
+    createdAt: row.created_at,
+  }
+}
+
+function mapSessionRpcRow(row: SessionRpcRow): TableSessionState {
+  return {
+    table: {
+      id: row.table_id,
+      number: row.table_number,
+      qrToken: "",
+      isActive: true,
+      createdAt: "",
+    },
+    session: {
+      id: row.session_id,
+      tableId: row.table_id,
+      status: row.session_status,
+      startedAt: row.started_at,
+      expiresAt: row.expires_at,
+      createdAt: row.started_at,
+    },
+    status: row.session_status === "active" ? "ready" : row.session_status,
+    message: null,
+  }
+}
+
+function mapOrder(row: OrderRow): Order {
+  return {
+    ...row,
+    tableId: row.tableId ?? row.table_id ?? null,
+    sessionId: row.sessionId ?? row.session_id ?? null,
+  }
+}
 
 function getErrorMessage(error: unknown) {
   if (error instanceof Error) return error.message
@@ -62,7 +148,16 @@ async function requireAdminSession(action: string) {
 }
 
 export async function fetchRestaurantData() {
-  const [productsResult, categoriesResult, settingsResult, ordersResult] =
+  await supabase.rpc("expire_order_sessions")
+
+  const [
+    productsResult,
+    categoriesResult,
+    settingsResult,
+    ordersResult,
+    tablesResult,
+    sessionsResult,
+  ] =
     await Promise.all([
       supabase.from("products").select("*").order("created_at"),
       supabase.from("categories").select("*").order("name"),
@@ -70,18 +165,31 @@ export async function fetchRestaurantData() {
       supabase.from("orders").select("*").order("createdAt", {
         ascending: false,
       }),
+      supabase.from("restaurant_tables").select("*").order("number"),
+      supabase
+        .from("order_sessions")
+        .select("*")
+        .order("created_at", { ascending: false }),
     ])
 
   if (productsResult.error) throw productsResult.error
   if (categoriesResult.error) throw categoriesResult.error
   if (settingsResult.error) throw settingsResult.error
   if (ordersResult.error) throw ordersResult.error
+  if (tablesResult.error) throw tablesResult.error
+  if (sessionsResult.error) throw sessionsResult.error
 
   return {
     products: (productsResult.data || []) as Product[],
     categories: (categoriesResult.data || []) as Category[],
     settings: settingsResult.data as SettingsRow | null,
-    orders: (ordersResult.data || []) as Order[],
+    orders: ((ordersResult.data || []) as OrderRow[]).map(mapOrder),
+    tables: ((tablesResult.data || []) as RestaurantTableRow[]).map(
+      mapRestaurantTable
+    ),
+    sessions: ((sessionsResult.data || []) as OrderSessionRow[]).map(
+      mapOrderSession
+    ),
   }
 }
 
@@ -215,12 +323,96 @@ export async function saveOrderPayment(orderId: string, isPaid: boolean) {
 export async function createOrder(order: OrderInsert) {
   const { data, error } = await supabase.rpc("create_public_order", {
     customer_name: order.customerName,
-    table_number: order.tableNumber || null,
+    order_session_id: order.sessionId,
     order_items: order.items,
     order_total: order.total,
     order_notes: order.notes || null,
   })
 
   if (error) throw error
-  return Array.isArray(data) ? (data[0] as Order) : (data as Order)
+  const row = Array.isArray(data) ? data[0] : data
+  return mapOrder(row as OrderRow)
+}
+
+export async function startOrResumeTableSession(
+  qrToken: string,
+  sessionId?: string | null
+) {
+  const { data, error } = await supabase.rpc("start_or_resume_order_session", {
+    qr_token_input: qrToken,
+    existing_session_id: sessionId || null,
+  })
+
+  if (error) throw error
+
+  const row = Array.isArray(data) ? data[0] : data
+  if (!row) {
+    return {
+      table: null,
+      session: null,
+      status: "invalid",
+      message: "La mesa no existe o esta desactivada.",
+    } satisfies TableSessionState
+  }
+
+  return mapSessionRpcRow(row as SessionRpcRow)
+}
+
+export async function createRestaurantTable(number: number) {
+  await requireAdminSession("crear mesas")
+
+  const { data, error } = await supabase
+    .from("restaurant_tables")
+    .insert({ number })
+    .select("*")
+    .single()
+
+  if (error) throw error
+  return mapRestaurantTable(data as RestaurantTableRow)
+}
+
+export async function saveRestaurantTableActive(
+  tableId: string,
+  isActive: boolean
+) {
+  await requireAdminSession("actualizar mesas")
+
+  const { data, error } = await supabase
+    .from("restaurant_tables")
+    .update({ is_active: isActive })
+    .eq("id", tableId)
+    .select("*")
+    .single()
+
+  if (error) throw error
+  return mapRestaurantTable(data as RestaurantTableRow)
+}
+
+export async function closeOrderSession(sessionId: string) {
+  await requireAdminSession("cerrar sesiones")
+
+  const { data, error } = await supabase
+    .from("order_sessions")
+    .update({ status: "closed" })
+    .eq("id", sessionId)
+    .select("*")
+    .single()
+
+  if (error) throw error
+  return mapOrderSession(data as OrderSessionRow)
+}
+
+export async function reactivateOrderSession(sessionId: string) {
+  await requireAdminSession("reactivar sesiones")
+
+  const expiresAt = new Date(Date.now() + 90 * 60 * 1000).toISOString()
+  const { data, error } = await supabase
+    .from("order_sessions")
+    .update({ status: "active", expires_at: expiresAt })
+    .eq("id", sessionId)
+    .select("*")
+    .single()
+
+  if (error) throw error
+  return mapOrderSession(data as OrderSessionRow)
 }

@@ -1,7 +1,9 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { Suspense, useMemo, useState } from "react"
+import { useSearchParams } from "next/navigation"
 import { useRestaurantData } from "@/context/restaurant-context"
+import { useTableSession } from "@/hooks/use-table-session"
 
 import { Navbar } from "@/components/menu/navbar"
 import { CategoryFilter } from "@/components/menu/category-filter"
@@ -10,10 +12,14 @@ import { ProductGridSkeleton } from "@/components/menu/product-skeleton"
 import { CartDrawer } from "@/components/menu/cart-drawer"
 
 import { Search } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
 
-export default function MenuPage() {
+function MenuPageContent() {
   const { settings, products, categories, isLoading, error } =
     useRestaurantData()
+  const searchParams = useSearchParams()
+  const qrToken = searchParams.get("t")
+  const tableSession = useTableSession(qrToken)
 
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
@@ -60,6 +66,18 @@ export default function MenuPage() {
           <p className="mt-2 text-muted-foreground">
             Explora nuestro menu y haz tu pedido directamente desde aqui.
           </p>
+
+          <div className="mt-4 flex justify-center">
+            {tableSession.table && tableSession.status === "ready" ? (
+              <Badge variant="secondary">
+                Mesa {tableSession.table.number}
+              </Badge>
+            ) : tableSession.message ? (
+              <div className="max-w-xl rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200">
+                {tableSession.message}
+              </div>
+            ) : null}
+          </div>
         </section>
 
         <section className="mb-6">
@@ -124,7 +142,19 @@ export default function MenuPage() {
         </section>
       </main>
 
-      <CartDrawer open={isCartOpen} onOpenChange={setIsCartOpen} />
+      <CartDrawer
+        open={isCartOpen}
+        onOpenChange={setIsCartOpen}
+        tableSession={tableSession}
+      />
     </div>
+  )
+}
+
+export default function MenuPage() {
+  return (
+    <Suspense fallback={null}>
+      <MenuPageContent />
+    </Suspense>
   )
 }

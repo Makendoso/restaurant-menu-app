@@ -10,6 +10,7 @@ import {
   Package,
   FolderOpen,
   Store,
+  Table2,
   Moon,
   Sun,
   ClipboardList,
@@ -17,10 +18,11 @@ import {
 import { ProductsTab } from "@/components/admin/products-tab"
 import { CategoriesTab } from "@/components/admin/categories-tab"
 import { RestaurantProfileTab } from "@/components/admin/restaurant-profile-tab"
+import { TablesTab } from "@/components/admin/tables-tab"
 import { LogoutButton } from "@/components/admin/logout-button"
 import { cn } from "@/lib/utils"
 
-type Tab = "products" | "categories" | "profile"
+type Tab = "products" | "categories" | "profile" | "tables"
 
 export default function AdminPage() {
   const { settings, orders, isLoading, error, refreshData } = useRestaurantData()
@@ -34,6 +36,7 @@ export default function AdminPage() {
   const tabs = [
     { id: "products" as Tab, label: "Products", icon: Package },
     { id: "categories" as Tab, label: "Categories", icon: FolderOpen },
+    { id: "tables" as Tab, label: "Mesas", icon: Table2 },
     { id: "profile" as Tab, label: "Perfil del restaurante", icon: Store },
   ]
 
@@ -121,6 +124,7 @@ export default function AdminPage() {
             <>
               {activeTab === "products" && <ProductsTab />}
               {activeTab === "categories" && <CategoriesTab />}
+              {activeTab === "tables" && <TablesTab />}
               {activeTab === "profile" && <RestaurantProfileTab />}
             </>
           )}

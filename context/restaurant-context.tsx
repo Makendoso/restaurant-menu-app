@@ -15,7 +15,9 @@ import type {
   CreateCategoryInput,
   CartItem,
   RestaurantSettings,
+  RestaurantTable,
   Order,
+  OrderSession,
   OrderStatus,
 } from "@/types"
 import { defaultSettings } from "@/lib/data"
@@ -23,10 +25,14 @@ import {
   createCategory,
   createOrder,
   createProduct,
+  createRestaurantTable,
   fetchRestaurantData,
+  closeOrderSession,
+  reactivateOrderSession,
   removeCategory,
   removeProduct,
   saveCategory,
+  saveRestaurantTableActive,
   saveOrderPayment,
   saveOrderStatus,
   saveProduct,
@@ -40,9 +46,15 @@ interface RestaurantDataContextType {
   categories: Category[]
   settings: RestaurantSettings
   orders: Order[]
+  tables: RestaurantTable[]
+  sessions: OrderSession[]
   isLoading: boolean
   error: string | null
   refreshData: () => Promise<void>
+  addTable: (number: number) => Promise<void>
+  setTableActive: (tableId: string, isActive: boolean) => Promise<void>
+  closeSession: (sessionId: string) => Promise<void>
+  reactivateSession: (sessionId: string) => Promise<void>
   addProduct: (product: Omit<Product, "id">) => Promise<void>
   updateProduct: (id: string, product: Partial<Product>) => Promise<void>
   deleteProduct: (id: string) => Promise<void>
@@ -101,6 +113,8 @@ function RestaurantDataProvider({ children }: { children: ReactNode }) {
   const [settings, setSettings] = useState<RestaurantSettings>(defaultSettings)
   const [settingsId, setSettingsId] = useState<string | null>(null)
   const [orders, setOrders] = useState<Order[]>([])
+  const [tables, setTables] = useState<RestaurantTable[]>([])
+  const [sessions, setSessions] = useState<OrderSession[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -116,6 +130,8 @@ function RestaurantDataProvider({ children }: { children: ReactNode }) {
       setSettings(normalizeSettings(data.settings))
       setSettingsId(data.settings?.id || null)
       setOrders(data.orders)
+      setTables(data.tables)
+      setSessions(data.sessions)
     } catch (loadError) {
       console.error(loadError)
       setError("No se pudieron cargar los datos del restaurante.")
@@ -132,6 +148,39 @@ function RestaurantDataProvider({ children }: { children: ReactNode }) {
   const addProduct = useCallback(async (product: Omit<Product, "id">) => {
     const createdProduct = await createProduct(product)
     setProducts((prev) => [...prev, createdProduct])
+  }, [])
+
+  const addTable = useCallback(async (number: number) => {
+    const createdTable = await createRestaurantTable(number)
+    setTables((prev) => [...prev, createdTable].sort((a, b) => a.number - b.number))
+  }, [])
+
+  const setTableActive = useCallback(
+    async (tableId: string, isActive: boolean) => {
+      const updatedTable = await saveRestaurantTableActive(tableId, isActive)
+      setTables((prev) =>
+        prev.map((table) => (table.id === tableId ? updatedTable : table))
+      )
+    },
+    []
+  )
+
+  const closeSession = useCallback(async (sessionId: string) => {
+    const updatedSession = await closeOrderSession(sessionId)
+    setSessions((prev) =>
+      prev.map((session) =>
+        session.id === sessionId ? updatedSession : session
+      )
+    )
+  }, [])
+
+  const reactivateSession = useCallback(async (sessionId: string) => {
+    const updatedSession = await reactivateOrderSession(sessionId)
+    setSessions((prev) =>
+      prev.map((session) =>
+        session.id === sessionId ? updatedSession : session
+      )
+    )
   }, [])
 
   const updateProduct = useCallback(
@@ -243,9 +292,15 @@ function RestaurantDataProvider({ children }: { children: ReactNode }) {
       categories,
       settings,
       orders,
+      tables,
+      sessions,
       isLoading,
       error,
       refreshData,
+      addTable,
+      setTableActive,
+      closeSession,
+      reactivateSession,
       addProduct,
       updateProduct,
       deleteProduct,
@@ -264,9 +319,15 @@ function RestaurantDataProvider({ children }: { children: ReactNode }) {
       categories,
       settings,
       orders,
+      tables,
+      sessions,
       isLoading,
       error,
       refreshData,
+      addTable,
+      setTableActive,
+      closeSession,
+      reactivateSession,
       addProduct,
       updateProduct,
       deleteProduct,

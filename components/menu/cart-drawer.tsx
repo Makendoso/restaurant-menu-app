@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { useCart, useRestaurantData } from "@/context/restaurant-context"
+import type { TableSessionState } from "@/types"
 import {
   Sheet,
   SheetContent,
@@ -16,9 +17,13 @@ import { toast } from "sonner"
 interface CartDrawerProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  tableSession: TableSessionState & {
+    canCreateOrder: boolean
+    expiredMessage: string
+  }
 }
 
-export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
+export function CartDrawer({ open, onOpenChange, tableSession }: CartDrawerProps) {
   const { settings, addOrder } = useRestaurantData()
   const { cart, updateQuantity, removeFromCart, clearCart, getCartTotal } =
     useCart()
@@ -37,6 +42,11 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
       return
     }
 
+    if (!tableSession.canCreateOrder || !tableSession.session) {
+      toast.error(tableSession.message || tableSession.expiredMessage)
+      return
+    }
+
     setIsSubmitting(true)
 
     try {
@@ -51,6 +61,8 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
         total: getCartTotal(),
         status: "preparing",
         isPaid: false,
+        tableId: tableSession.table?.id,
+        sessionId: tableSession.session.id,
       })
 
       clearCart()
@@ -171,12 +183,17 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
                   {formatPrice(getCartTotal())}
                 </span>
               </div>
+              {!tableSession.canCreateOrder && (
+                <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200">
+                  {tableSession.message || tableSession.expiredMessage}
+                </div>
+              )}
               
               <div className="flex flex-col gap-2">
                 <Button
                   onClick={handleCreateOrder}
                   size="lg"
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || !tableSession.canCreateOrder}
                   className="w-full gap-2 rounded-xl text-base"
                 >
                   <Send className="h-5 w-5" />
