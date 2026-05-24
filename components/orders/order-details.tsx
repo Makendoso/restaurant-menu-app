@@ -13,20 +13,30 @@ import {
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import {
-  User,
-  Hash,
-  Clock,
-  MessageSquare,
-  ChefHat,
-  CheckCircle2,
   ArrowRight,
-  CreditCard,
   Banknote,
-  AlertCircle,
-  Ban,
+  CreditCard,
+  Hash,
+  MessageSquare,
+  User,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import {
+  OrderStatusBadge,
+  orderStatusConfig,
+} from "@/components/orders/order-status"
+import { Spinner } from "@/components/ui/spinner"
 
 interface OrderDetailsProps {
   order: Order | null
@@ -46,33 +56,18 @@ function formatDateTime(dateString: string) {
 
 const statusConfig = {
   pending: {
-    label: "Pendientes",
-    icon: AlertCircle,
-    className: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300",
     nextLabel: "Aceptar orden",
   },
   preparing: {
-    label: "Preparando",
-    icon: ChefHat,
-    className: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
     nextLabel: "Marcar como lista",
   },
   ready: {
-    label: "Listas",
-    icon: Clock,
-    className: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
     nextLabel: "Marcar como entregada",
   },
   delivered: {
-    label: "Entregadas",
-    icon: CheckCircle2,
-    className: "bg-muted text-muted-foreground",
     nextLabel: null,
   },
   cancelled: {
-    label: "Canceladas",
-    icon: Ban,
-    className: "bg-destructive/10 text-destructive",
     nextLabel: null,
   },
 }
@@ -83,6 +78,7 @@ export function OrderDetails({ order, onClose }: OrderDetailsProps) {
   const [pendingAction, setPendingAction] = useState<
     "status" | "payment" | "cancel" | null
   >(null)
+  const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false)
 
   // Update order if it changes in context
   const currentOrder = order ? orders.find((o) => o.id === order.id) || order : null
@@ -96,7 +92,7 @@ export function OrderDetails({ order, onClose }: OrderDetailsProps) {
   }
 
   const status = statusConfig[currentOrder.status]
-  const StatusIcon = status.icon
+  const isWorking = pendingAction !== null
 
   const handleAdvanceStatus = async () => {
     setPendingAction("status")
@@ -147,6 +143,7 @@ export function OrderDetails({ order, onClose }: OrderDetailsProps) {
   }
 
   return (
+    <>
     <Sheet open={!!order} onOpenChange={() => onClose()}>
       <SheetContent className="flex w-full flex-col gap-0 p-5 pb-[calc(env(safe-area-inset-bottom)+1rem)] sm:max-w-lg sm:p-6">
         <SheetHeader className="space-y-3 p-0 pr-10">
@@ -155,15 +152,7 @@ export function OrderDetails({ order, onClose }: OrderDetailsProps) {
               <Hash className="h-5 w-5" />
               Orden #{currentOrder.orderNumber}
             </SheetTitle>
-            <div
-              className={cn(
-                "flex w-fit shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium",
-                status.className
-              )}
-            >
-              <StatusIcon className="h-3.5 w-3.5" />
-              {status.label}
-            </div>
+            <OrderStatusBadge status={currentOrder.status} />
           </div>
           <p className="text-sm text-muted-foreground">
             {formatDateTime(currentOrder.createdAt)}
@@ -269,11 +258,13 @@ export function OrderDetails({ order, onClose }: OrderDetailsProps) {
             <Button
               variant={currentOrder.isPaid ? "outline" : "default"}
               size="sm"
-              disabled={pendingAction === "payment"}
+              disabled={isWorking}
               onClick={handleTogglePayment}
+              className="gap-2"
             >
+              {pendingAction === "payment" && <Spinner />}
               {pendingAction === "payment"
-                ? "Guardando..."
+                ? "Guardando"
                 : currentOrder.isPaid
                   ? "Marcar como no pagada"
                   : "Marcar como pagada"}
@@ -287,22 +278,32 @@ export function OrderDetails({ order, onClose }: OrderDetailsProps) {
             <Button
               className="w-full gap-2"
               size="lg"
-              disabled={pendingAction === "status"}
+              disabled={isWorking}
               onClick={handleAdvanceStatus}
             >
-              {pendingAction === "status" ? "Guardando..." : status.nextLabel}
-              <ArrowRight className="h-4 w-4" />
+              {pendingAction === "status" ? (
+                <>
+                  <Spinner />
+                  Guardando
+                </>
+              ) : (
+                <>
+                  {status.nextLabel}
+                  <ArrowRight className="h-4 w-4" />
+                </>
+              )}
             </Button>
           )}
           {currentOrder.status !== "delivered" &&
             currentOrder.status !== "cancelled" && (
               <Button
                 variant="outline"
-                className="w-full"
-                disabled={pendingAction === "cancel"}
-                onClick={handleCancelOrder}
+                className="w-full gap-2 border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                disabled={isWorking}
+                onClick={() => setIsCancelDialogOpen(true)}
               >
-                {pendingAction === "cancel" ? "Cancelando..." : "Cancelar orden"}
+                {pendingAction === "cancel" && <Spinner />}
+                {pendingAction === "cancel" ? "Cancelando" : "Cancelar orden"}
               </Button>
             )}
           <Button variant="outline" className="w-full" onClick={onClose}>
@@ -311,5 +312,33 @@ export function OrderDetails({ order, onClose }: OrderDetailsProps) {
         </div>
       </SheetContent>
     </Sheet>
+    <AlertDialog
+      open={isCancelDialogOpen}
+      onOpenChange={(open) => !isWorking && setIsCancelDialogOpen(open)}
+    >
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Cancelar orden #{currentOrder.orderNumber}?</AlertDialogTitle>
+          <AlertDialogDescription>
+            La orden pasara a estado {orderStatusConfig.cancelled.label.toLowerCase()} y el equipo dejara de prepararla.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={isWorking}>Volver</AlertDialogCancel>
+          <AlertDialogAction
+            disabled={isWorking}
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            onClick={async (event) => {
+              event.preventDefault()
+              await handleCancelOrder()
+              setIsCancelDialogOpen(false)
+            }}
+          >
+            {pendingAction === "cancel" ? "Cancelando..." : "Cancelar orden"}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   )
 }

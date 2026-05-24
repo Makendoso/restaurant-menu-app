@@ -14,7 +14,7 @@ import {
 import { CustomerMenuSection } from "@/components/menu/customer-menu-section"
 import { TableOrders } from "@/components/menu/table-orders"
 
-import { Badge } from "@/components/ui/badge"
+import { Hash } from "lucide-react"
 
 function MenuPageContent() {
   const { settings, products, categories, isLoading, error } =
@@ -51,9 +51,21 @@ function MenuPageContent() {
             Explora nuestro menu y haz tu pedido directamente desde aqui.
           </p>
 
-          <div className="mt-4 flex justify-center">
+          <div className="mt-5 flex justify-center">
             {tableSession.table && tableSession.status === "ready" ? (
-              <Badge variant="secondary">Mesa {tableSession.table.number}</Badge>
+              <div className="inline-flex items-center gap-3 rounded-xl border bg-card px-4 py-3 shadow-sm sm:px-5">
+                <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                  <Hash className="h-5 w-5" />
+                </span>
+                <div className="text-left">
+                  <p className="text-xs font-medium uppercase text-muted-foreground">
+                    Mesa actual
+                  </p>
+                  <p className="text-xl font-bold leading-none sm:text-2xl">
+                    {tableSession.table.number}
+                  </p>
+                </div>
+              </div>
             ) : tableSession.message ? (
               <div className="max-w-xl rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200">
                 {tableSession.message}

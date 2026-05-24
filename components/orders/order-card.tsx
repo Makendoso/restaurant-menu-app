@@ -3,16 +3,13 @@
 import { Order } from "@/types"
 import { useRestaurantData } from "@/context/restaurant-context"
 import {
-  AlertCircle,
-  Ban,
-  CheckCircle2,
-  ChefHat,
   Clock,
   DollarSign,
   Hash,
   User,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { OrderStatusBadge } from "@/components/orders/order-status"
 
 interface OrderCardProps {
   order: Order
@@ -33,45 +30,16 @@ function formatTime(dateString: string) {
   return date.toLocaleDateString()
 }
 
-const statusConfig = {
-  pending: {
-    label: "Pendientes",
-    icon: AlertCircle,
-    className: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300",
-  },
-  preparing: {
-    label: "Preparando",
-    icon: ChefHat,
-    className: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
-  },
-  ready: {
-    label: "Listas",
-    icon: Clock,
-    className: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
-  },
-  delivered: {
-    label: "Entregadas",
-    icon: CheckCircle2,
-    className: "bg-muted text-muted-foreground",
-  },
-  cancelled: {
-    label: "Canceladas",
-    icon: Ban,
-    className: "bg-destructive/10 text-destructive",
-  },
-}
-
 export function OrderCard({ order, onClick, isNew }: OrderCardProps) {
   const { settings } = useRestaurantData()
-  const status = statusConfig[order.status]
-  const StatusIcon = status.icon
 
   return (
     <button
       onClick={onClick}
       className={cn(
         "w-full rounded-xl border bg-card p-4 text-left shadow-sm transition-all hover:shadow-md active:scale-[0.99]",
-        isNew && "ring-2 ring-primary ring-offset-2 ring-offset-background"
+        isNew &&
+          "border-primary/50 bg-primary/5 ring-2 ring-primary/30 ring-offset-2 ring-offset-background animate-pulse"
       )}
     >
       <div className="flex items-start justify-between gap-4">
@@ -110,15 +78,7 @@ export function OrderCard({ order, onClick, isNew }: OrderCardProps) {
 
       {/* Status Badge */}
         <div className="flex flex-col items-end gap-2">
-          <div
-            className={cn(
-              "flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium",
-              status.className
-            )}
-          >
-            <StatusIcon className="h-3.5 w-3.5" />
-            {status.label}
-          </div>
+          <OrderStatusBadge status={order.status} plural />
           {order.isPaid ? (
             <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">
               Pagada

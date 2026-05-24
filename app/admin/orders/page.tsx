@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useRestaurantData } from "@/context/restaurant-context"
 import { useTheme } from "next-themes"
 import Link from "next/link"
@@ -23,6 +23,7 @@ import { OrderDetails } from "@/components/orders/order-details"
 import { LogoutButton } from "@/components/admin/logout-button"
 import { Order, OrderStatus } from "@/types"
 import { cn } from "@/lib/utils"
+import { Spinner } from "@/components/ui/spinner"
 
 type FilterStatus = "all" | OrderStatus
 
@@ -54,6 +55,38 @@ export default function OrdersPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [filterStatus, setFilterStatus] = useState<FilterStatus>("pending")
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
+  const [newOrderIds, setNewOrderIds] = useState<Set<string>>(new Set())
+  const previousOrderIdsRef = useRef<Set<string> | null>(null)
+
+  useEffect(() => {
+    const currentIds = new Set(orders.map((order) => order.id))
+    const previousIds = previousOrderIdsRef.current
+
+    if (previousIds) {
+      const incoming = orders.filter((order) => !previousIds.has(order.id))
+      previousOrderIdsRef.current = currentIds
+
+      if (incoming.length > 0) {
+        setNewOrderIds((prev) => {
+          const next = new Set(prev)
+          incoming.forEach((order) => next.add(order.id))
+          return next
+        })
+
+        const timeoutId = window.setTimeout(() => {
+          setNewOrderIds((prev) => {
+            const next = new Set(prev)
+            incoming.forEach((order) => next.delete(order.id))
+            return next
+          })
+        }, 12000)
+
+        return () => window.clearTimeout(timeoutId)
+      }
+    }
+
+    previousOrderIdsRef.current = currentIds
+  }, [orders])
 
   // Calculate status counts
   const statusCounts = useMemo(() => {
@@ -176,14 +209,17 @@ export default function OrdersPage() {
         {/* Orders List */}
         <div className="space-y-3">
           {isLoading ? (
-            <div className="flex flex-col items-center justify-center rounded-xl border bg-card py-16 text-center">
-              <Package className="mb-4 h-12 w-12 text-muted-foreground/50" />
-              <h3 className="text-lg font-medium">Cargando ordenes...</h3>
+            <div className="flex flex-col items-center justify-center rounded-xl border bg-card py-14 text-center">
+              <Spinner className="mb-4 h-6 w-6 text-primary" />
+              <h3 className="text-lg font-medium">Cargando ordenes</h3>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Un momento mientras traemos los pedidos.
+              </p>
             </div>
           ) : filteredOrders.length === 0 ? (
-            <div className="flex flex-col items-center justify-center rounded-xl border bg-card py-16 text-center">
+            <div className="flex flex-col items-center justify-center rounded-xl border border-dashed bg-card py-16 px-4 text-center">
               <Package className="mb-4 h-12 w-12 text-muted-foreground/50" />
-              <h3 className="text-lg font-medium">No se encontraron ordenes</h3>
+              <h3 className="text-lg font-medium">No hay ordenes por ahora</h3>
               <p className="mt-1 text-sm text-muted-foreground">
                 {searchQuery || filterStatus !== "all"
                   ? "Ajusta la busqueda o los filtros"
@@ -196,6 +232,7 @@ export default function OrdersPage() {
                 key={order.id}
                 order={order}
                 onClick={() => setSelectedOrder(order)}
+                isNew={newOrderIds.has(order.id)}
               />
             ))
           )}

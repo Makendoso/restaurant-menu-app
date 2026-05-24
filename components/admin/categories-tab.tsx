@@ -6,6 +6,16 @@ import { getRestaurantServiceErrorMessage } from "@/services/restaurant-service"
 import type { Category, CreateCategoryInput } from "@/types"
 import { Button } from "@/components/ui/button"
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -34,6 +44,7 @@ import {
   FolderOpen,
 } from "lucide-react"
 import { toast } from "sonner"
+import { Spinner } from "@/components/ui/spinner"
 
 const iconOptions = [
   { value: "salad", label: "Ensalada", icon: Salad },
@@ -59,7 +70,9 @@ export function CategoriesTab() {
 
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingCategory, setEditingCategory] = useState<Category | null>(null)
+  const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(null)
   const [isSaving, setIsSaving] = useState(false)
+  const [pendingCategoryId, setPendingCategoryId] = useState<string | null>(null)
   const [formData, setFormData] = useState<CreateCategoryInput>({
     name: "",
     icon: "utensils",
@@ -145,16 +158,24 @@ export function CategoriesTab() {
       return
     }
 
-    if (confirm(`Seguro que deseas eliminar "${category.name}"?`)) {
-      try {
-        await deleteCategory(category.id)
-        toast.success("Categoria eliminada")
-      } catch (error) {
-        console.error(error)
-        toast.error(
-          getRestaurantServiceErrorMessage(error, "No se pudo eliminar la categoria")
-        )
-      }
+    setCategoryToDelete(category)
+  }
+
+  const confirmDelete = async () => {
+    if (!categoryToDelete) return
+
+    setPendingCategoryId(categoryToDelete.id)
+    try {
+      await deleteCategory(categoryToDelete.id)
+      toast.success("Categoria eliminada")
+      setCategoryToDelete(null)
+    } catch (error) {
+      console.error(error)
+      toast.error(
+        getRestaurantServiceErrorMessage(error, "No se pudo eliminar la categoria")
+      )
+    } finally {
+      setPendingCategoryId(null)
     }
   }
 
@@ -236,8 +257,9 @@ export function CategoriesTab() {
                   Cancelar
                 </Button>
                 <Button type="submit" disabled={isSaving} className="flex-1">
+                  {isSaving && <Spinner className="mr-2" />}
                   {isSaving
-                    ? "Guardando..."
+                    ? "Guardando"
                     : editingCategory
                       ? "Actualizar categoria"
                       : "Agregar categoria"}
@@ -281,6 +303,7 @@ export function CategoriesTab() {
                     variant="ghost"
                     size="icon"
                     onClick={() => openEditDialog(category)}
+                    disabled={pendingCategoryId === category.id}
                   >
                     <Pencil className="h-4 w-4" />
                   </Button>
@@ -288,9 +311,14 @@ export function CategoriesTab() {
                     variant="ghost"
                     size="icon"
                     className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    disabled={pendingCategoryId === category.id}
                     onClick={() => handleDelete(category)}
                   >
-                    <Trash2 className="h-4 w-4" />
+                    {pendingCategoryId === category.id ? (
+                      <Spinner />
+                    ) : (
+                      <Trash2 className="h-4 w-4" />
+                    )}
                   </Button>
                 </div>
               </div>
@@ -298,6 +326,38 @@ export function CategoriesTab() {
           })
         )}
       </div>
+      <AlertDialog
+        open={!!categoryToDelete}
+        onOpenChange={(open) => {
+          if (!open && !pendingCategoryId) setCategoryToDelete(null)
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Eliminar categoria?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {categoryToDelete
+                ? `Se eliminara "${categoryToDelete.name}" del menu. Esta accion no se puede deshacer.`
+                : "Esta accion no se puede deshacer."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={!!pendingCategoryId}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              disabled={!!pendingCategoryId || !categoryToDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={(event) => {
+                event.preventDefault()
+                confirmDelete()
+              }}
+            >
+              {pendingCategoryId ? "Eliminando..." : "Eliminar"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

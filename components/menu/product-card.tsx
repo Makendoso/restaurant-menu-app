@@ -19,15 +19,17 @@ export function ProductCard({ product }: ProductCardProps) {
   const cartItem = cart.find((item) => item.product.id === product.id)
   const quantity = cartItem?.quantity || 0
   const badges = [
-    product.featured ? { label: "⭐ Destacado", className: "bg-primary/10 text-primary" } : null,
+    product.featured ? { label: "Destacado", className: "bg-primary/10 text-primary" } : null,
   ].filter(Boolean) as Array<{ label: string; className: string }>
 
   const handleAddToCart = () => {
+    if (!product.available) return
     addToCart(product)
     toast.success(`${product.name} agregado al carrito`)
   }
 
   const handleIncrement = () => {
+    if (!product.available) return
     addToCart(product)
   }
 
@@ -51,7 +53,7 @@ export function ProductCard({ product }: ProductCardProps) {
     <div
       className={cn(
         "group relative flex flex-col overflow-hidden rounded-2xl border bg-card transition-all duration-300 hover:shadow-lg",
-        !product.available && "opacity-60"
+        !product.available && "opacity-75"
       )}
     >
       {/* Imagen */}
@@ -100,7 +102,7 @@ export function ProductCard({ product }: ProductCardProps) {
             {formatPrice(product.price)}
           </span>
 
-          {product.available && (
+          {product.available ? (
             <>
               {quantity === 0 ? (
                 <Button
@@ -134,6 +136,15 @@ export function ProductCard({ product }: ProductCardProps) {
                 </div>
               )}
             </>
+          ) : (
+            <Button
+              size="sm"
+              variant="outline"
+              disabled
+              className="rounded-full border-dashed"
+            >
+              No disponible
+            </Button>
           )}
         </div>
       </div>

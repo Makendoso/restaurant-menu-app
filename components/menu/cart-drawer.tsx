@@ -11,10 +11,21 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
 import { Minus, Plus, Trash2, ShoppingBag, Send } from "lucide-react"
 import Image from "next/image"
 import { toast } from "sonner"
+import { Spinner } from "@/components/ui/spinner"
 
 interface CartDrawerProps {
   open: boolean
@@ -38,6 +49,7 @@ export function CartDrawer({
   const { cart, updateQuantity, removeFromCart, clearCart, getCartTotal } =
     useCart()
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isClearDialogOpen, setIsClearDialogOpen] = useState(false)
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat("es-MX", {
@@ -165,6 +177,7 @@ export function CartDrawer({
                             variant="outline"
                             size="icon"
                             className="h-7 w-7"
+                            disabled={isSubmitting}
                             onClick={() =>
                               updateQuantity(item.product.id, item.quantity - 1)
                             }
@@ -178,6 +191,7 @@ export function CartDrawer({
                             variant="outline"
                             size="icon"
                             className="h-7 w-7"
+                            disabled={isSubmitting}
                             onClick={() =>
                               updateQuantity(item.product.id, item.quantity + 1)
                             }
@@ -189,6 +203,7 @@ export function CartDrawer({
                           variant="ghost"
                           size="icon"
                           className="h-7 w-7 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                          disabled={isSubmitting}
                           onClick={() => {
                             removeFromCart(item.product.id)
                             toast.info(`${item.product.name} eliminado`)
@@ -223,18 +238,18 @@ export function CartDrawer({
                   disabled={isSubmitting || !tableSession.canCreateOrder}
                   className="w-full gap-2 rounded-xl text-base"
                 >
-                  <Send className="h-5 w-5" />
-                  {isSubmitting
-                    ? "Enviando orden..."
-                    : "Enviar orden"}
+                  {isSubmitting ? (
+                    <Spinner className="h-5 w-5" />
+                  ) : (
+                    <Send className="h-5 w-5" />
+                  )}
+                  {isSubmitting ? "Enviando orden" : "Enviar orden"}
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => {
-                    clearCart()
-                    toast.info("Carrito vaciado")
-                  }}
+                  disabled={isSubmitting}
+                  onClick={() => setIsClearDialogOpen(true)}
                   className="w-full"
                 >
                   Vaciar carrito
@@ -244,6 +259,29 @@ export function CartDrawer({
           </>
         )}
       </SheetContent>
+      <AlertDialog open={isClearDialogOpen} onOpenChange={setIsClearDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Vaciar carrito?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se quitaran todos los productos de tu orden actual.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Volver</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                clearCart()
+                setIsClearDialogOpen(false)
+                toast.info("Carrito vaciado")
+              }}
+            >
+              Vaciar carrito
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Sheet>
   )
 }

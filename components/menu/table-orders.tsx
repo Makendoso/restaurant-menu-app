@@ -2,24 +2,17 @@
 
 import { useCallback, useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { fetchPublicOrders } from "@/services/restaurant-service"
 import type { Order, RestaurantSettings } from "@/types"
 import { Banknote, CheckCircle2 } from "lucide-react"
+import { OrderStatusBadge } from "@/components/orders/order-status"
+import { Spinner } from "@/components/ui/spinner"
 
 type TableOrdersProps = {
   tableId: string | null | undefined
   sessionId: string | null | undefined
   settings: RestaurantSettings
   refreshKey: number
-}
-
-const statusLabels: Record<Order["status"], string> = {
-  pending: "Pendiente",
-  preparing: "Preparando",
-  ready: "Lista",
-  delivered: "Entregada",
-  cancelled: "Cancelada",
 }
 
 const statusMessages: Record<Order["status"], string> = {
@@ -52,12 +45,17 @@ export function TableOrders({
 }: TableOrdersProps) {
   const [orders, setOrders] = useState<Order[]>([])
   const [isLoading, setIsLoading] = useState(false)
+  const [isRefreshing, setIsRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const loadOrders = useCallback(async () => {
     if (!tableId || !sessionId) return
 
-    setIsLoading(true)
+    if (orders.length === 0) {
+      setIsLoading(true)
+    } else {
+      setIsRefreshing(true)
+    }
     setError(null)
 
     try {
@@ -69,8 +67,9 @@ export function TableOrders({
       )
     } finally {
       setIsLoading(false)
+      setIsRefreshing(false)
     }
-  }, [sessionId, tableId])
+  }, [orders.length, sessionId, tableId])
 
   useEffect(() => {
     Promise.resolve().then(() => {
@@ -97,7 +96,14 @@ export function TableOrders({
             Necesitas cambiar algo? Solicita ayuda al personal.
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={() => loadOrders()}>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => loadOrders()}
+          disabled={isLoading || isRefreshing}
+          className="gap-2"
+        >
+          {isRefreshing && <Spinner />}
           Actualizar
         </Button>
       </div>
@@ -105,11 +111,14 @@ export function TableOrders({
       {error ? (
         <p className="text-sm text-destructive">{error}</p>
       ) : isLoading ? (
-        <p className="text-sm text-muted-foreground">Cargando ordenes...</p>
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Spinner />
+          Cargando ordenes
+        </div>
       ) : orders.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          Todavia no hay ordenes para esta mesa.
-        </p>
+        <div className="rounded-lg border border-dashed bg-muted/20 p-4 text-sm text-muted-foreground">
+          Todavia no hay ordenes para esta mesa. Cuando envies una, aparecera aqui.
+        </div>
       ) : (
         <div className="space-y-3">
           {orders.map((order) => (
@@ -121,9 +130,7 @@ export function TableOrders({
                     Enviada a las {formatTime(order.createdAt)}
                   </div>
                 </div>
-                <Badge variant={order.status === "pending" ? "secondary" : "outline"}>
-                  {statusLabels[order.status]}
-                </Badge>
+                <OrderStatusBadge status={order.status} />
               </div>
 
               <p className="mt-2 text-sm text-muted-foreground">

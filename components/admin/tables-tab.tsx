@@ -15,11 +15,22 @@ import {
 } from "lucide-react"
 import { useRestaurantData } from "@/context/restaurant-context"
 import type { OrderSession, RestaurantTable } from "@/types"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
+import { Spinner } from "@/components/ui/spinner"
 
 type TableState = "libre" | "activa" | "expirada" | "cerrada" | "inactiva"
 
@@ -126,6 +137,10 @@ export function TablesTab() {
   } = useRestaurantData()
   const [tableNumber, setTableNumber] = useState("")
   const [pendingAction, setPendingAction] = useState<string | null>(null)
+  const [sessionToClose, setSessionToClose] = useState<{
+    table: RestaurantTable
+    session: OrderSession
+  } | null>(null)
   const [currentTime, setCurrentTime] = useState(() => Date.now())
 
   useEffect(() => {
@@ -226,8 +241,12 @@ export function TablesTab() {
             disabled={pendingAction === "create"}
             className="shrink-0 gap-2"
           >
-            <Plus className="h-4 w-4" />
-            Crear
+            {pendingAction === "create" ? (
+              <Spinner />
+            ) : (
+              <Plus className="h-4 w-4" />
+            )}
+            {pendingAction === "create" ? "Creando" : "Crear"}
           </Button>
         </div>
       </div>
@@ -342,13 +361,17 @@ export function TablesTab() {
                         className="w-full justify-center"
                         disabled={isPending}
                         onClick={() =>
-                          runAction(`${table.id}-close`, () =>
-                            closeSession(currentSession.id)
-                          )
+                          setSessionToClose({ table, session: currentSession })
                         }
                       >
-                        <XCircle className="h-4 w-4" />
-                        Cerrar sesion
+                        {pendingAction === `${table.id}-close` ? (
+                          <Spinner />
+                        ) : (
+                          <XCircle className="h-4 w-4" />
+                        )}
+                        {pendingAction === `${table.id}-close`
+                          ? "Cerrando"
+                          : "Cerrar sesion"}
                       </Button>
                     )}
 
@@ -363,8 +386,14 @@ export function TablesTab() {
                           )
                         }
                       >
-                        <Play className="h-4 w-4" />
-                        Nueva sesion
+                        {pendingAction === `${table.id}-create-session` ? (
+                          <Spinner />
+                        ) : (
+                          <Play className="h-4 w-4" />
+                        )}
+                        {pendingAction === `${table.id}-create-session`
+                          ? "Creando"
+                          : "Nueva sesion"}
                       </Button>
                     )}
 
@@ -378,8 +407,16 @@ export function TablesTab() {
                         )
                       }
                     >
-                      <Power className="h-4 w-4" />
-                      {table.isActive ? "Desactivar mesa" : "Activar mesa"}
+                      {pendingAction === `${table.id}-active` ? (
+                        <Spinner />
+                      ) : (
+                        <Power className="h-4 w-4" />
+                      )}
+                      {pendingAction === `${table.id}-active`
+                        ? "Guardando"
+                        : table.isActive
+                          ? "Desactivar mesa"
+                          : "Activar mesa"}
                     </Button>
                   </div>
                 </CardContent>
@@ -388,6 +425,41 @@ export function TablesTab() {
           })}
         </div>
       )}
+      <AlertDialog
+        open={!!sessionToClose}
+        onOpenChange={(open) => {
+          if (!open && !pendingAction) setSessionToClose(null)
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Cerrar sesion de mesa {sessionToClose?.table.number}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Los clientes ya no podran enviar ordenes con este QR hasta iniciar una nueva sesion.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={!!pendingAction}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              disabled={!!pendingAction || !sessionToClose}
+              onClick={(event) => {
+                event.preventDefault()
+                if (!sessionToClose) return
+
+                runAction(`${sessionToClose.table.id}-close`, () =>
+                  closeSession(sessionToClose.session.id)
+                ).then(() => setSessionToClose(null))
+              }}
+            >
+              {pendingAction ? "Cerrando..." : "Cerrar sesion"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

@@ -6,6 +6,16 @@ import { getRestaurantServiceErrorMessage } from "@/services/restaurant-service"
 import { Product } from "@/types"
 import { Button } from "@/components/ui/button"
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -26,6 +36,7 @@ import { Switch } from "@/components/ui/switch"
 import { Plus, Pencil, Trash2, ImageIcon } from "lucide-react"
 import Image from "next/image"
 import { toast } from "sonner"
+import { Spinner } from "@/components/ui/spinner"
 
 export function ProductsTab() {
   const {
@@ -40,6 +51,7 @@ export function ProductsTab() {
   
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
+  const [productToDelete, setProductToDelete] = useState<Product | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [pendingProductId, setPendingProductId] = useState<string | null>(null)
   const [formData, setFormData] = useState({
@@ -177,16 +189,18 @@ export function ProductsTab() {
   }
 
   const handleDelete = async (product: Product) => {
-    if (confirm(`Seguro que deseas eliminar "${product.name}"?`)) {
-      try {
-        await deleteProduct(product.id)
-        toast.success("Producto eliminado")
-      } catch (error) {
-        console.error(error)
-        toast.error(
-          getRestaurantServiceErrorMessage(error, "No se pudo eliminar el producto")
-        )
-      }
+    setPendingProductId(product.id)
+    try {
+      await deleteProduct(product.id)
+      toast.success("Producto eliminado")
+      setProductToDelete(null)
+    } catch (error) {
+      console.error(error)
+      toast.error(
+        getRestaurantServiceErrorMessage(error, "No se pudo eliminar el producto")
+      )
+    } finally {
+      setPendingProductId(null)
     }
   }
 
@@ -314,8 +328,9 @@ export function ProductsTab() {
                   Cancelar
                 </Button>
                 <Button type="submit" disabled={isSaving} className="flex-1">
+                  {isSaving && <Spinner className="mr-2" />}
                   {isSaving
-                    ? "Guardando..."
+                    ? "Guardando"
                     : editingProduct
                       ? "Actualizar producto"
                       : "Agregar producto"}
@@ -389,6 +404,7 @@ export function ProductsTab() {
                   variant="ghost"
                   size="icon"
                   onClick={() => openEditDialog(product)}
+                  disabled={pendingProductId === product.id}
                 >
                   <Pencil className="h-4 w-4" />
                 </Button>
@@ -396,15 +412,54 @@ export function ProductsTab() {
                   variant="ghost"
                   size="icon"
                   className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                  onClick={() => handleDelete(product)}
+                  disabled={pendingProductId === product.id}
+                  onClick={() => setProductToDelete(product)}
                 >
-                  <Trash2 className="h-4 w-4" />
+                  {pendingProductId === product.id ? (
+                    <Spinner />
+                  ) : (
+                    <Trash2 className="h-4 w-4" />
+                  )}
                 </Button>
               </div>
             </div>
           ))
         )}
       </div>
+      <AlertDialog
+        open={!!productToDelete}
+        onOpenChange={(open) => {
+          if (!open && !pendingProductId) setProductToDelete(null)
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Eliminar producto?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {productToDelete
+                ? `Se eliminara "${productToDelete.name}" del menu. Esta accion no se puede deshacer.`
+                : "Esta accion no se puede deshacer."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={!!pendingProductId}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              disabled={!!pendingProductId || !productToDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={(event) => {
+                event.preventDefault()
+                if (productToDelete) {
+                  handleDelete(productToDelete)
+                }
+              }}
+            >
+              {pendingProductId ? "Eliminando..." : "Eliminar"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
