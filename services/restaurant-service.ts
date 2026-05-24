@@ -417,7 +417,7 @@ export async function validateTableSession(
     return {
       valid: false,
       message:
-        "La sesión de esta mesa ya no está disponible. Escanea nuevamente el QR o solicita ayuda al personal.",
+        "La sesion de esta mesa ya no esta disponible. Escanea nuevamente el QR o solicita ayuda al personal.",
       table: null,
       session: null,
     }

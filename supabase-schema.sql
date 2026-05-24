@@ -15,8 +15,23 @@ create table if not exists public.products (
   image text not null default '',
   "categoryId" uuid references public.categories(id) on delete set null,
   available boolean not null default true,
+  featured boolean not null default false,
+  "salesCount" integer not null default 0 check ("salesCount" >= 0),
+  "sortOrder" integer not null default 0,
   created_at timestamptz not null default now()
 );
+
+alter table public.products
+  add column if not exists featured boolean not null default false,
+  add column if not exists "salesCount" integer not null default 0,
+  add column if not exists "sortOrder" integer not null default 0;
+
+alter table public.products
+  drop constraint if exists products_sales_count_check;
+
+alter table public.products
+  add constraint products_sales_count_check
+  check ("salesCount" >= 0);
 
 create table if not exists public.settings (
   id uuid primary key default gen_random_uuid(),

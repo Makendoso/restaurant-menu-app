@@ -42,7 +42,7 @@ export function CategoryFilter({ selectedCategory, onSelectCategory }: CategoryF
           )}
         >
           <LayoutGrid className="h-4 w-4" />
-          All
+          Todos
         </button>
         {categories.map((category) => {
           const Icon = iconMap[category.icon] || Utensils

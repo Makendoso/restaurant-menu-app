@@ -18,10 +18,13 @@ export function ProductCard({ product }: ProductCardProps) {
   
   const cartItem = cart.find((item) => item.product.id === product.id)
   const quantity = cartItem?.quantity || 0
+  const badges = [
+    product.featured ? { label: "⭐ Destacado", className: "bg-primary/10 text-primary" } : null,
+  ].filter(Boolean) as Array<{ label: string; className: string }>
 
   const handleAddToCart = () => {
     addToCart(product)
-    toast.success(`${product.name} added to cart`)
+    toast.success(`${product.name} agregado al carrito`)
   }
 
   const handleIncrement = () => {
@@ -31,7 +34,7 @@ export function ProductCard({ product }: ProductCardProps) {
   const handleDecrement = () => {
     if (quantity === 1) {
       removeFromCart(product.id)
-      toast.info(`${product.name} removed from cart`)
+      toast.info(`${product.name} eliminado del carrito`)
     } else {
       updateQuantity(product.id, quantity - 1)
     }
@@ -51,7 +54,7 @@ export function ProductCard({ product }: ProductCardProps) {
         !product.available && "opacity-60"
       )}
     >
-      {/* Image */}
+      {/* Imagen */}
       <div className="relative aspect-[4/3] overflow-hidden bg-muted">
         <Image
           src={product.image}
@@ -63,14 +66,27 @@ export function ProductCard({ product }: ProductCardProps) {
         {!product.available && (
           <div className="absolute inset-0 flex items-center justify-center bg-background/80">
             <span className="rounded-full bg-destructive px-3 py-1 text-sm font-medium text-destructive-foreground">
-              Unavailable
+              No disponible
             </span>
           </div>
         )}
       </div>
 
-      {/* Content */}
+      {/* Contenido */}
       <div className="flex flex-1 flex-col p-4">
+        <div className="mb-2 flex min-h-6 flex-wrap gap-1.5">
+          {badges.map((badge) => (
+            <span
+              key={badge.label}
+              className={cn(
+                "rounded-full px-2 py-0.5 text-xs font-medium",
+                badge.className
+              )}
+            >
+              {badge.label}
+            </span>
+          ))}
+        </div>
         <h3 className="text-lg font-semibold leading-tight text-card-foreground">
           {product.name}
         </h3>
@@ -78,7 +94,7 @@ export function ProductCard({ product }: ProductCardProps) {
           {product.description}
         </p>
 
-        {/* Price and Add to Cart */}
+        {/* Precio y carrito */}
         <div className="mt-4 flex items-center justify-between gap-3">
           <span className="text-lg font-bold text-primary">
             {formatPrice(product.price)}
@@ -93,7 +109,7 @@ export function ProductCard({ product }: ProductCardProps) {
                   className="rounded-full"
                 >
                   <Plus className="mr-1 h-4 w-4" />
-                  Add
+                  Agregar
                 </Button>
               ) : (
                 <div className="flex items-center gap-2">

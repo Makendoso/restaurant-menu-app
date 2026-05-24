@@ -6,9 +6,9 @@ import { startOrResumeTableSession } from "@/services/restaurant-service"
 
 const STORAGE_KEY = "restaurant_table_session"
 export const TABLE_SESSION_UNAVAILABLE_MESSAGE =
-  "La sesión de esta mesa ya no está disponible. Escanea nuevamente el QR o solicita ayuda al personal."
+  "La sesion de esta mesa ya no esta disponible. Escanea nuevamente el QR o solicita ayuda al personal."
 const EXPIRED_MESSAGE =
-  "La sesión de esta mesa expiró. Escanea nuevamente el QR o solicita ayuda al personal."
+  "La sesion de esta mesa expiro. Escanea nuevamente el QR o solicita ayuda al personal."
 
 type StoredSession = {
   qrToken: string

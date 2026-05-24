@@ -69,6 +69,9 @@ export function ProductsTab() {
     }
   }
 
+  const normalizeProductName = (value: string) =>
+    value.trim().replace(/\s+/g, " ").toLowerCase()
+
   const resetForm = () => {
     setFormData({
       name: "",
@@ -123,7 +126,19 @@ export function ProductsTab() {
     }
 
     if (!isValidImageUrl(image)) {
-      toast.error("Image URL must start with http:// or https://")
+      toast.error("La URL de imagen debe iniciar con http:// o https://")
+      return
+    }
+
+    const normalizedName = normalizeProductName(name)
+    const duplicateProduct = products.find(
+      (product) =>
+        normalizeProductName(product.name) === normalizedName &&
+        product.id !== editingProduct?.id
+    )
+
+    if (duplicateProduct) {
+      toast.error("Ya existe un producto con ese nombre.")
       return
     }
 
@@ -311,7 +326,7 @@ export function ProductsTab() {
         </Dialog>
       </div>
 
-      {/* Products List */}
+      {/* Lista de productos */}
       <div className="space-y-3">
         {products.length === 0 ? (
           <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-12">
@@ -346,7 +361,7 @@ export function ProductsTab() {
                   )}
                 </div>
                 <p className="text-sm text-muted-foreground truncate">
-                  {getCategoryName(product.categoryId)} • {formatPrice(product.price)}
+                  {getCategoryName(product.categoryId)} - {formatPrice(product.price)}
                 </p>
               </div>
               <div className="flex items-center gap-1">

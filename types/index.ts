@@ -6,6 +6,9 @@ export interface Product {
   image: string
   categoryId: string
   available: boolean
+  featured?: boolean
+  salesCount?: number
+  sortOrder?: number
 }
 
 export type Category = {

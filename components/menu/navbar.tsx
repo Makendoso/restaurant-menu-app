@@ -48,7 +48,7 @@ export function Navbar({ onCartClick, onSearchChange, searchQuery }: NavbarProps
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <input
               type="text"
-              placeholder="Search menu..."
+              placeholder="Buscar en el menu..."
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
               className="h-10 w-64 rounded-lg border bg-background pl-10 pr-4 text-sm outline-none transition-all placeholder:text-muted-foreground focus:ring-2 focus:ring-primary/20"
@@ -63,7 +63,7 @@ export function Navbar({ onCartClick, onSearchChange, searchQuery }: NavbarProps
           >
             <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
             <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-            <span className="sr-only">Toggle theme</span>
+            <span className="sr-only">Cambiar tema</span>
           </Button>
 
           {/* Cart Button */}
@@ -79,14 +79,14 @@ export function Navbar({ onCartClick, onSearchChange, searchQuery }: NavbarProps
                 {cartCount}
               </span>
             )}
-            <span className="sr-only">Shopping cart</span>
+            <span className="sr-only">Carrito</span>
           </Button>
 
           {/* Admin Link */}
           <Link href="/admin">
             <Button variant="ghost" size="icon">
               <Menu className="h-5 w-5" />
-              <span className="sr-only">Admin</span>
+              <span className="sr-only">Administracion</span>
             </Button>
           </Link>
         </div>
@@ -99,7 +99,7 @@ export function Navbar({ onCartClick, onSearchChange, searchQuery }: NavbarProps
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <input
               type="text"
-              placeholder="Search menu..."
+              placeholder="Buscar en el menu..."
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
               className="h-10 w-full rounded-lg border bg-background pl-10 pr-4 text-sm outline-none transition-all placeholder:text-muted-foreground focus:ring-2 focus:ring-primary/20"

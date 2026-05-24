@@ -41,10 +41,10 @@ export function CustomerMenuSection({
   }, [products, selectedCategory, searchQuery])
 
   const getCategoryName = (categoryId: string | null) => {
-    if (categoryId === null) return "All Items"
+    if (categoryId === null) return "Todos"
 
     const category = categories.find((item) => item.id === categoryId)
-    return category?.name || "All Items"
+    return category?.name || "Todos"
   }
 
   const clearFilters = () => {
@@ -72,7 +72,7 @@ export function CustomerMenuSection({
         </h3>
 
         <span className="text-sm text-muted-foreground">
-          {filteredProducts.length} item
+          {filteredProducts.length} producto
           {filteredProducts.length !== 1 && "s"}
         </span>
       </div>
@@ -90,12 +90,12 @@ export function CustomerMenuSection({
             <Search className="h-8 w-8 text-muted-foreground" />
           </div>
 
-          <h3 className="mt-4 text-lg font-semibold">No items found</h3>
+          <h3 className="mt-4 text-lg font-semibold">No encontramos productos</h3>
 
           <p className="mt-1 text-sm text-muted-foreground">
             {searchQuery
-              ? `No results for "${searchQuery}"`
-              : "No items in this category"}
+              ? `No hay resultados para "${searchQuery}"`
+              : "No hay productos en esta categoria"}
           </p>
 
           {(searchQuery || selectedCategory) && (
@@ -104,7 +104,7 @@ export function CustomerMenuSection({
               onClick={clearFilters}
               className="mt-4 text-sm font-medium text-primary hover:underline"
             >
-              Clear filters
+              Limpiar filtros
             </button>
           )}
         </div>

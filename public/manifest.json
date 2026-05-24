@@ -1,0 +1,17 @@
+{
+  "name": "Menu Digital La Cocina",
+  "short_name": "Menu Digital",
+  "description": "Menu digital para explorar productos y enviar pedidos.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f8f5f2",
+  "theme_color": "#111827",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "180x180",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

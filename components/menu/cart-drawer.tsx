@@ -48,7 +48,7 @@ export function CartDrawer({
 
   const handleSaveOrder = async () => {
     if (cart.length === 0) {
-      toast.error("Your cart is empty")
+      toast.error("Tu carrito esta vacio")
       return
     }
 
@@ -109,7 +109,7 @@ export function CartDrawer({
         <SheetHeader className="border-b pb-4">
           <SheetTitle className="flex items-center gap-2 text-xl">
             <ShoppingBag className="h-5 w-5" />
-            Your Order
+            Tu orden
           </SheetTitle>
         </SheetHeader>
 
@@ -119,9 +119,9 @@ export function CartDrawer({
               <ShoppingBag className="h-10 w-10 text-muted-foreground" />
             </div>
             <div className="text-center">
-              <h3 className="text-lg font-semibold">Your cart is empty</h3>
+              <h3 className="text-lg font-semibold">Tu carrito esta vacio</h3>
               <p className="mt-1 text-sm text-muted-foreground">
-                Add some delicious items to get started
+                Agrega productos para empezar
               </p>
             </div>
             <Button
@@ -129,7 +129,7 @@ export function CartDrawer({
               onClick={() => onOpenChange(false)}
               className="mt-2"
             >
-              Browse Menu
+              Ver menu
             </Button>
           </div>
         ) : (
@@ -191,7 +191,7 @@ export function CartDrawer({
                           className="h-7 w-7 text-destructive hover:bg-destructive/10 hover:text-destructive"
                           onClick={() => {
                             removeFromCart(item.product.id)
-                            toast.info(`${item.product.name} removed`)
+                            toast.info(`${item.product.name} eliminado`)
                           }}
                         >
                           <Trash2 className="h-4 w-4" />
@@ -233,11 +233,11 @@ export function CartDrawer({
                   size="sm"
                   onClick={() => {
                     clearCart()
-                    toast.info("Cart cleared")
+                    toast.info("Carrito vaciado")
                   }}
                   className="w-full"
                 >
-                  Clear Cart
+                  Vaciar carrito
                 </Button>
               </div>
             </div>
