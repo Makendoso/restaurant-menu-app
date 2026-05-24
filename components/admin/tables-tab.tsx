@@ -10,6 +10,7 @@ import {
   Plus,
   Power,
   ReceiptText,
+  Wallet,
   XCircle,
 } from "lucide-react"
 import { useRestaurantData } from "@/context/restaurant-context"
@@ -59,6 +60,24 @@ function getLatestSession(sessions: OrderSession[], tableId: string) {
     )[0]
 }
 
+function getCurrentSession(
+  sessions: OrderSession[],
+  tableId: string,
+  currentTime: number
+) {
+  return sessions
+    .filter(
+      (session) =>
+        session.tableId === tableId &&
+        session.status === "active" &&
+        new Date(session.expiresAt).getTime() > currentTime
+    )
+    .sort(
+      (a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    )[0]
+}
+
 function getTableState(
   table: RestaurantTable,
   session: OrderSession | undefined,
@@ -94,16 +113,6 @@ function formatRemainingTime(
   return `${hours}h ${rest}m`
 }
 
-function hasActiveSession(
-  session: OrderSession | undefined,
-  currentTime: number
-) {
-  return (
-    session?.status === "active" &&
-    new Date(session.expiresAt).getTime() > currentTime
-  )
-}
-
 export function TablesTab() {
   const {
     tables,
@@ -128,12 +137,27 @@ export function TablesTab() {
     () =>
       tables.map((table) => {
         const latestSession = getLatestSession(sessions, table.id)
+        const currentSession = getCurrentSession(sessions, table.id, currentTime)
+        const sessionOrders = currentSession
+          ? orders.filter(
+              (order) =>
+                order.tableId === table.id &&
+                order.sessionId === currentSession.id
+            )
+          : []
+
         return {
           table,
           session: latestSession,
+          currentSession,
           state: getTableState(table, latestSession, currentTime),
-          orderCount: orders.filter((order) => order.tableId === table.id)
-            .length,
+          orderCount: sessionOrders.length,
+          paymentLabel:
+            sessionOrders.length === 0
+              ? "Sin ordenes"
+              : sessionOrders.every((order) => order.isPaid)
+                ? "Pagada"
+                : "Pago pendiente",
         }
       }),
     [currentTime, orders, sessions, tables]
@@ -214,9 +238,17 @@ export function TablesTab() {
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {rows.map(({ table, session, state, orderCount }) => {
+          {rows.map(
+            ({
+              table,
+              session,
+              currentSession,
+              state,
+              orderCount,
+              paymentLabel,
+            }) => {
             const isPending = pendingAction?.includes(table.id)
-            const isSessionActive = hasActiveSession(session, currentTime)
+            const isSessionActive = !!currentSession
             const canCreateSession = table.isActive && !isSessionActive
             const qrUrl = `/menu?t=${table.qrToken}`
 
@@ -278,6 +310,13 @@ export function TablesTab() {
                       </p>
                       <p className="mt-1 font-medium">{orderCount}</p>
                     </div>
+                    <div className="rounded-lg bg-muted/50 p-3">
+                      <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <Wallet className="h-3.5 w-3.5" />
+                        Pago
+                      </p>
+                      <p className="mt-1 font-medium">{paymentLabel}</p>
+                    </div>
                   </div>
 
                   <div className="min-w-0 rounded-lg border bg-background p-3">
@@ -297,14 +336,14 @@ export function TablesTab() {
                       Copiar enlace QR
                     </Button>
 
-                    {isSessionActive && session && (
+                    {isSessionActive && currentSession && (
                       <Button
                         variant="outline"
                         className="w-full justify-center"
                         disabled={isPending}
                         onClick={() =>
                           runAction(`${table.id}-close`, () =>
-                            closeSession(session.id)
+                            closeSession(currentSession.id)
                           )
                         }
                       >

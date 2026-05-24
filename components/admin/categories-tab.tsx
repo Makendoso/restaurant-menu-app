@@ -36,12 +36,12 @@ import {
 import { toast } from "sonner"
 
 const iconOptions = [
-  { value: "salad", label: "Salad", icon: Salad },
-  { value: "utensils", label: "Utensils", icon: Utensils },
-  { value: "hamburger", label: "Burger", icon: Sandwich },
+  { value: "salad", label: "Ensalada", icon: Salad },
+  { value: "utensils", label: "Cubiertos", icon: Utensils },
+  { value: "hamburger", label: "Hamburguesa", icon: Sandwich },
   { value: "pizza", label: "Pizza", icon: Pizza },
-  { value: "cup-soda", label: "Drink", icon: CupSoda },
-  { value: "cake", label: "Cake", icon: Cake },
+  { value: "cup-soda", label: "Bebida", icon: CupSoda },
+  { value: "cake", label: "Postre", icon: Cake },
 ]
 
 const iconMap: Record<string, React.ElementType> = {
@@ -90,7 +90,7 @@ export function CategoriesTab() {
     const name = formData.name.trim()
 
     if (!name) {
-      toast.error("Please enter a category name")
+      toast.error("Ingresa el nombre de la categoria")
       return
     }
 
@@ -101,7 +101,7 @@ export function CategoriesTab() {
     )
 
     if (duplicateCategory) {
-      toast.error("A category with that name already exists")
+      toast.error("Ya existe una categoria con ese nombre")
       return
     }
 
@@ -115,10 +115,10 @@ export function CategoriesTab() {
     try {
       if (editingCategory) {
         await updateCategory(editingCategory.id, categoryData)
-        toast.success("Category updated successfully")
+        toast.success("Categoria actualizada")
       } else {
         await addCategory(categoryData)
-        toast.success("Category added successfully")
+        toast.success("Categoria agregada")
       }
 
       setIsDialogOpen(false)
@@ -126,7 +126,7 @@ export function CategoriesTab() {
     } catch (error) {
       console.error(error)
       toast.error(
-        getRestaurantServiceErrorMessage(error, "Could not save category")
+        getRestaurantServiceErrorMessage(error, "No se pudo guardar la categoria")
       )
     } finally {
       setIsSaving(false)
@@ -140,19 +140,19 @@ export function CategoriesTab() {
 
     if (productsInCategory.length > 0) {
       toast.error(
-        `Cannot delete "${category.name}" - it has ${productsInCategory.length} product(s)`
+        `No puedes eliminar "${category.name}" porque tiene ${productsInCategory.length} producto(s)`
       )
       return
     }
 
-    if (confirm(`Are you sure you want to delete "${category.name}"?`)) {
+    if (confirm(`Seguro que deseas eliminar "${category.name}"?`)) {
       try {
         await deleteCategory(category.id)
-        toast.success("Category deleted")
+        toast.success("Categoria eliminada")
       } catch (error) {
         console.error(error)
         toast.error(
-          getRestaurantServiceErrorMessage(error, "Could not delete category")
+          getRestaurantServiceErrorMessage(error, "No se pudo eliminar la categoria")
         )
       }
     }
@@ -166,40 +166,40 @@ export function CategoriesTab() {
     <div>
       <div className="mb-4 flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-semibold">Categories</h2>
+          <h2 className="text-xl font-semibold">Categorias</h2>
           <p className="text-sm text-muted-foreground">
-            Organize your menu items
+            Organiza los productos del menu
           </p>
         </div>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button onClick={openAddDialog}>
               <Plus className="mr-2 h-4 w-4" />
-              Add Category
+              Agregar categoria
             </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
               <DialogTitle>
-                {editingCategory ? "Edit Category" : "Add New Category"}
+                {editingCategory ? "Editar categoria" : "Agregar categoria"}
               </DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="name">Name *</Label>
+                <Label htmlFor="name">Nombre *</Label>
                 <Input
                   id="name"
                   value={formData.name}
                   onChange={(e) =>
                     setFormData({ ...formData, name: e.target.value })
                   }
-                  placeholder="Category name"
+                  placeholder="Nombre de la categoria"
                   required
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="icon">Icon</Label>
+                <Label htmlFor="icon">Icono</Label>
                 <Select
                   value={formData.icon}
                   onValueChange={(value) =>
@@ -207,7 +207,7 @@ export function CategoriesTab() {
                   }
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select an icon" />
+                    <SelectValue placeholder="Selecciona un icono" />
                   </SelectTrigger>
                   <SelectContent>
                     {iconOptions.map((option) => {
@@ -233,12 +233,14 @@ export function CategoriesTab() {
                   disabled={isSaving}
                   className="flex-1"
                 >
-                  Cancel
+                  Cancelar
                 </Button>
                 <Button type="submit" disabled={isSaving} className="flex-1">
                   {isSaving
-                    ? "Saving..."
-                    : `${editingCategory ? "Update" : "Add"} Category`}
+                    ? "Guardando..."
+                    : editingCategory
+                      ? "Actualizar categoria"
+                      : "Agregar categoria"}
                 </Button>
               </div>
             </form>
@@ -251,9 +253,9 @@ export function CategoriesTab() {
         {categories.length === 0 ? (
           <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-12">
             <FolderOpen className="h-12 w-12 text-muted-foreground" />
-            <h3 className="mt-4 font-semibold">No categories yet</h3>
+            <h3 className="mt-4 font-semibold">Aun no hay categorias</h3>
             <p className="text-sm text-muted-foreground">
-              Add your first category to organize your menu
+              Agrega la primera categoria para organizar el menu
             </p>
           </div>
         ) : (
@@ -271,7 +273,7 @@ export function CategoriesTab() {
                 <div className="flex-1">
                   <h3 className="font-medium">{category.name}</h3>
                   <p className="text-sm text-muted-foreground">
-                    {productCount} product{productCount !== 1 && "s"}
+                    {productCount} producto{productCount !== 1 && "s"}
                   </p>
                 </div>
                 <div className="flex items-center gap-1">

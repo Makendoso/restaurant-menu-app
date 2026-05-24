@@ -26,7 +26,7 @@ export default function AdminSettingsPage() {
             <div>
               <h1 className="text-lg font-semibold">{settings.name}</h1>
               <p className="text-sm text-muted-foreground">
-                Settings privados
+                Ajustes privados
               </p>
             </div>
           </div>
@@ -49,7 +49,7 @@ export default function AdminSettingsPage() {
           <div className="mb-4 flex items-center justify-between gap-4 rounded-lg border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">
             <span>{error}</span>
             <Button variant="outline" size="sm" onClick={() => refreshData()}>
-              Retry
+              Reintentar
             </Button>
           </div>
         )}
@@ -57,7 +57,7 @@ export default function AdminSettingsPage() {
         <div className="rounded-xl border bg-card p-4 md:p-6">
           {isLoading ? (
             <div className="py-12 text-center text-sm text-muted-foreground">
-              Loading restaurant data...
+              Cargando datos del restaurante...
             </div>
           ) : (
             <SettingsTab />

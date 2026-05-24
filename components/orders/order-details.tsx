@@ -35,7 +35,7 @@ interface OrderDetailsProps {
 
 function formatDateTime(dateString: string) {
   const date = new Date(dateString)
-  return date.toLocaleString("en-US", {
+  return date.toLocaleString("es-MX", {
     month: "short",
     day: "numeric",
     hour: "numeric",
@@ -46,7 +46,7 @@ function formatDateTime(dateString: string) {
 
 const statusConfig = {
   pending: {
-    label: "Pendiente",
+    label: "Pendientes",
     icon: AlertCircle,
     className: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300",
     nextLabel: "Aceptar orden",
@@ -58,19 +58,19 @@ const statusConfig = {
     nextLabel: "Marcar como lista",
   },
   ready: {
-    label: "Lista",
+    label: "Listas",
     icon: Clock,
     className: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
     nextLabel: "Marcar como entregada",
   },
   delivered: {
-    label: "Entregada",
+    label: "Entregadas",
     icon: CheckCircle2,
     className: "bg-muted text-muted-foreground",
     nextLabel: null,
   },
   cancelled: {
-    label: "Cancelada",
+    label: "Canceladas",
     icon: Ban,
     className: "bg-destructive/10 text-destructive",
     nextLabel: null,
@@ -106,7 +106,7 @@ export function OrderDetails({ order, onClose }: OrderDetailsProps) {
     } catch (error) {
       console.error(error)
       toast.error(
-        getRestaurantServiceErrorMessage(error, "Could not update order status")
+        getRestaurantServiceErrorMessage(error, "No se pudo actualizar la orden")
       )
     } finally {
       setPendingAction(null)
@@ -123,7 +123,7 @@ export function OrderDetails({ order, onClose }: OrderDetailsProps) {
       toast.error(
         getRestaurantServiceErrorMessage(
           error,
-          "Could not update payment status"
+          "No se pudo actualizar el pago"
         )
       )
     } finally {
@@ -153,7 +153,7 @@ export function OrderDetails({ order, onClose }: OrderDetailsProps) {
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <SheetTitle className="flex items-center gap-2">
               <Hash className="h-5 w-5" />
-              Order #{currentOrder.orderNumber}
+              Orden #{currentOrder.orderNumber}
             </SheetTitle>
             <div
               className={cn(
@@ -275,8 +275,8 @@ export function OrderDetails({ order, onClose }: OrderDetailsProps) {
               {pendingAction === "payment"
                 ? "Guardando..."
                 : currentOrder.isPaid
-                  ? "Marcar sin pagar"
-                  : "Marcar pagada"}
+                  ? "Marcar como no pagada"
+                  : "Marcar como pagada"}
             </Button>
           </div>
         </div>

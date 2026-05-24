@@ -26,11 +26,33 @@ import { cn } from "@/lib/utils"
 
 type FilterStatus = "all" | OrderStatus
 
+const statusPriority: Record<OrderStatus, number> = {
+  pending: 0,
+  preparing: 1,
+  ready: 2,
+  delivered: 3,
+  cancelled: 4,
+}
+
+function sortOrdersForOwner(a: Order, b: Order) {
+  const statusDiff = statusPriority[a.status] - statusPriority[b.status]
+  if (statusDiff !== 0) return statusDiff
+
+  const aTime = new Date(a.createdAt).getTime()
+  const bTime = new Date(b.createdAt).getTime()
+
+  if (a.status === "delivered" || a.status === "cancelled") {
+    return bTime - aTime
+  }
+
+  return aTime - bTime
+}
+
 export default function OrdersPage() {
   const { settings, orders, isLoading, error, refreshData } = useRestaurantData()
   const { theme, setTheme } = useTheme()
   const [searchQuery, setSearchQuery] = useState("")
-  const [filterStatus, setFilterStatus] = useState<FilterStatus>("all")
+  const [filterStatus, setFilterStatus] = useState<FilterStatus>("pending")
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
 
   // Calculate status counts
@@ -57,16 +79,16 @@ export default function OrdersPage() {
           order.tableNumber?.includes(searchQuery)
         return matchesStatus && matchesSearch
       })
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .sort(sortOrdersForOwner)
   }, [orders, filterStatus, searchQuery])
 
   const filters = [
-    { id: "all" as FilterStatus, label: "Todas", icon: Package, count: statusCounts.all },
-    { id: "pending" as FilterStatus, label: "Pendiente", icon: AlertCircle, count: statusCounts.pending },
+    { id: "pending" as FilterStatus, label: "Pendientes", icon: AlertCircle, count: statusCounts.pending },
     { id: "preparing" as FilterStatus, label: "Preparando", icon: ChefHat, count: statusCounts.preparing },
-    { id: "ready" as FilterStatus, label: "Lista", icon: Clock, count: statusCounts.ready },
-    { id: "delivered" as FilterStatus, label: "Entregada", icon: CheckCircle2, count: statusCounts.delivered },
-    { id: "cancelled" as FilterStatus, label: "Cancelada", icon: Ban, count: statusCounts.cancelled },
+    { id: "ready" as FilterStatus, label: "Listas", icon: Clock, count: statusCounts.ready },
+    { id: "delivered" as FilterStatus, label: "Entregadas", icon: CheckCircle2, count: statusCounts.delivered },
+    { id: "cancelled" as FilterStatus, label: "Canceladas", icon: Ban, count: statusCounts.cancelled },
+    { id: "all" as FilterStatus, label: "Todas", icon: Package, count: statusCounts.all },
   ]
 
   return (
@@ -78,7 +100,7 @@ export default function OrdersPage() {
             <Link href="/admin">
               <Button variant="ghost" size="icon">
                 <ArrowLeft className="h-5 w-5" />
-                <span className="sr-only">Back to admin</span>
+                <span className="sr-only">Volver al panel</span>
               </Button>
             </Link>
             <div>
@@ -103,7 +125,7 @@ export default function OrdersPage() {
           <div className="mb-4 flex items-center justify-between gap-4 rounded-lg border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">
             <span>{error}</span>
             <Button variant="outline" size="sm" onClick={() => refreshData()}>
-              Retry
+              Reintentar
             </Button>
           </div>
         )}

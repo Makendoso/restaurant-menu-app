@@ -108,17 +108,17 @@ export function ProductsTab() {
     const price = Number(formData.price)
 
     if (!name || !formData.price || !formData.categoryId) {
-      toast.error("Please fill in all required fields")
+      toast.error("Completa todos los campos obligatorios")
       return
     }
 
     if (!Number.isFinite(price) || price <= 0) {
-      toast.error("Price must be greater than zero")
+      toast.error("El precio debe ser mayor que cero")
       return
     }
 
     if (!categories.some((category) => category.id === formData.categoryId)) {
-      toast.error("Please select a valid category")
+      toast.error("Selecciona una categoria valida")
       return
     }
 
@@ -143,10 +143,10 @@ export function ProductsTab() {
     try {
       if (editingProduct) {
         await updateProduct(editingProduct.id, productData)
-        toast.success("Product updated successfully")
+        toast.success("Producto actualizado")
       } else {
         await addProduct(productData)
-        toast.success("Product added successfully")
+        toast.success("Producto agregado")
       }
 
       setIsDialogOpen(false)
@@ -154,7 +154,7 @@ export function ProductsTab() {
     } catch (error) {
       console.error(error)
       toast.error(
-        getRestaurantServiceErrorMessage(error, "Could not save product")
+        getRestaurantServiceErrorMessage(error, "No se pudo guardar el producto")
       )
     } finally {
       setIsSaving(false)
@@ -162,74 +162,74 @@ export function ProductsTab() {
   }
 
   const handleDelete = async (product: Product) => {
-    if (confirm(`Are you sure you want to delete "${product.name}"?`)) {
+    if (confirm(`Seguro que deseas eliminar "${product.name}"?`)) {
       try {
         await deleteProduct(product.id)
-        toast.success("Product deleted")
+        toast.success("Producto eliminado")
       } catch (error) {
         console.error(error)
         toast.error(
-          getRestaurantServiceErrorMessage(error, "Could not delete product")
+          getRestaurantServiceErrorMessage(error, "No se pudo eliminar el producto")
         )
       }
     }
   }
 
   const getCategoryName = (categoryId: string) => {
-    return categories.find((c) => c.id === categoryId)?.name || "Unknown"
+    return categories.find((c) => c.id === categoryId)?.name || "Sin categoria"
   }
 
   return (
     <div>
       <div className="mb-4 flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-semibold">Products</h2>
+          <h2 className="text-xl font-semibold">Productos</h2>
           <p className="text-sm text-muted-foreground">
-            Manage your menu items
+            Administra los productos del menu
           </p>
         </div>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button onClick={openAddDialog}>
               <Plus className="mr-2 h-4 w-4" />
-              Add Product
+              Agregar producto
             </Button>
           </DialogTrigger>
           <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-md">
             <DialogHeader>
               <DialogTitle>
-                {editingProduct ? "Edit Product" : "Add New Product"}
+                {editingProduct ? "Editar producto" : "Agregar producto"}
               </DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="name">Name *</Label>
+                <Label htmlFor="name">Nombre *</Label>
                 <Input
                   id="name"
                   value={formData.name}
                   onChange={(e) =>
                     setFormData({ ...formData, name: e.target.value })
                   }
-                  placeholder="Product name"
+                  placeholder="Nombre del producto"
                   required
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="description">Description</Label>
+                <Label htmlFor="description">Descripcion</Label>
                 <Textarea
                   id="description"
                   value={formData.description}
                   onChange={(e) =>
                     setFormData({ ...formData, description: e.target.value })
                   }
-                  placeholder="Product description"
+                  placeholder="Descripcion del producto"
                   rows={3}
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="price">Price ({settings.currency}) *</Label>
+                <Label htmlFor="price">Precio ({settings.currency}) *</Label>
                 <Input
                   id="price"
                   type="number"
@@ -245,7 +245,7 @@ export function ProductsTab() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="category">Category *</Label>
+                <Label htmlFor="category">Categoria *</Label>
                 <Select
                   value={formData.categoryId}
                   onValueChange={(value) =>
@@ -253,7 +253,7 @@ export function ProductsTab() {
                   }
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select a category" />
+                    <SelectValue placeholder="Selecciona una categoria" />
                   </SelectTrigger>
                   <SelectContent>
                     {categories.map((category) => (
@@ -266,7 +266,7 @@ export function ProductsTab() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="image">Image URL</Label>
+                <Label htmlFor="image">URL de imagen</Label>
                 <Input
                   id="image"
                   value={formData.image}
@@ -278,7 +278,7 @@ export function ProductsTab() {
               </div>
 
               <div className="flex items-center justify-between">
-                <Label htmlFor="available">Available</Label>
+                <Label htmlFor="available">Disponible</Label>
                 <Switch
                   id="available"
                   checked={formData.available}
@@ -296,12 +296,14 @@ export function ProductsTab() {
                   disabled={isSaving}
                   className="flex-1"
                 >
-                  Cancel
+                  Cancelar
                 </Button>
                 <Button type="submit" disabled={isSaving} className="flex-1">
                   {isSaving
-                    ? "Saving..."
-                    : `${editingProduct ? "Update" : "Add"} Product`}
+                    ? "Guardando..."
+                    : editingProduct
+                      ? "Actualizar producto"
+                      : "Agregar producto"}
                 </Button>
               </div>
             </form>
@@ -314,9 +316,9 @@ export function ProductsTab() {
         {products.length === 0 ? (
           <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-12">
             <ImageIcon className="h-12 w-12 text-muted-foreground" />
-            <h3 className="mt-4 font-semibold">No products yet</h3>
+            <h3 className="mt-4 font-semibold">Aun no hay productos</h3>
             <p className="text-sm text-muted-foreground">
-              Add your first product to get started
+              Agrega el primer producto para empezar
             </p>
           </div>
         ) : (
@@ -339,7 +341,7 @@ export function ProductsTab() {
                   <h3 className="font-medium truncate">{product.name}</h3>
                   {!product.available && (
                     <span className="flex-shrink-0 rounded bg-destructive/10 px-2 py-0.5 text-xs text-destructive">
-                      Unavailable
+                      No disponible
                     </span>
                   )}
                 </div>
@@ -360,7 +362,7 @@ export function ProductsTab() {
                       toast.error(
                         getRestaurantServiceErrorMessage(
                           error,
-                          "Could not update availability"
+                          "No se pudo actualizar la disponibilidad"
                         )
                       )
                     } finally {

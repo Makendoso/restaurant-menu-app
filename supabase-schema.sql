@@ -540,6 +540,51 @@ $$;
 
 grant execute on function public.get_public_session_orders(uuid, uuid) to anon, authenticated;
 
+drop function if exists public.cleanup_old_restaurant_data(integer);
+
+create or replace function public.cleanup_old_restaurant_data(
+  retention_days integer default 7
+)
+returns table (
+  deleted_orders integer,
+  deleted_sessions integer
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  safe_retention_days integer := greatest(coalesce(retention_days, 7), 1);
+  cutoff_at timestamptz := now() - make_interval(days => safe_retention_days);
+  deleted_orders_count integer := 0;
+  deleted_sessions_count integer := 0;
+begin
+  perform public.expire_order_sessions();
+
+  delete from public.orders as o
+  where o."createdAt" < cutoff_at;
+
+  get diagnostics deleted_orders_count = row_count;
+
+  delete from public.order_sessions as os
+  where os.status in ('expired', 'closed')
+    and os.created_at < cutoff_at
+    and not exists (
+      select 1
+      from public.orders as o
+      where o.session_id = os.id
+        and o."createdAt" >= cutoff_at
+    );
+
+  get diagnostics deleted_sessions_count = row_count;
+
+  return query
+    select deleted_orders_count, deleted_sessions_count;
+end;
+$$;
+
+grant execute on function public.cleanup_old_restaurant_data(integer) to authenticated;
+
 drop function if exists public.update_public_order(uuid, uuid, uuid, jsonb, numeric, text);
 
 drop policy if exists "Authenticated read orders" on public.orders;

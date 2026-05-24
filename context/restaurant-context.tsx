@@ -24,6 +24,7 @@ import { defaultSettings } from "@/lib/data"
 import {
   createCategory,
   createOrder,
+  cleanupOldRestaurantData,
   createProduct,
   createRestaurantTable,
   createOrderSessionForTable,
@@ -38,6 +39,7 @@ import {
   saveProduct,
   saveSettings,
   type OrderInsert,
+  type CleanupOldRestaurantDataResult,
   type SettingsRow,
 } from "@/services/restaurant-service"
 
@@ -66,6 +68,7 @@ interface RestaurantDataContextType {
   updateOrderStatus: (orderId: string, status: OrderStatus) => Promise<void>
   advanceOrderStatus: (orderId: string) => Promise<void>
   toggleOrderPayment: (orderId: string) => Promise<void>
+  cleanupOldData: (retentionDays?: number) => Promise<CleanupOldRestaurantDataResult>
   addOrder: (order: OrderInsert) => Promise<Order>
 }
 
@@ -288,6 +291,12 @@ function RestaurantDataProvider({ children }: { children: ReactNode }) {
     [orders]
   )
 
+  const cleanupOldData = useCallback(async (retentionDays = 7) => {
+    const result = await cleanupOldRestaurantData(retentionDays)
+    await refreshData()
+    return result
+  }, [refreshData])
+
   const addOrder = useCallback(async (order: OrderInsert) => {
     const createdOrder = await createOrder(order)
     setOrders((prev) => [createdOrder, ...prev])
@@ -320,6 +329,7 @@ function RestaurantDataProvider({ children }: { children: ReactNode }) {
       updateOrderStatus,
       advanceOrderStatus,
       toggleOrderPayment,
+      cleanupOldData,
       addOrder,
     }),
     [
@@ -347,6 +357,7 @@ function RestaurantDataProvider({ children }: { children: ReactNode }) {
       updateOrderStatus,
       advanceOrderStatus,
       toggleOrderPayment,
+      cleanupOldData,
       addOrder,
     ]
   )

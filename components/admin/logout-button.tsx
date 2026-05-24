@@ -22,7 +22,7 @@ export function LogoutButton() {
       router.refresh()
     } catch (error) {
       console.error(error)
-      toast.error("Could not sign out")
+      toast.error("No se pudo cerrar sesion")
       setIsSigningOut(false)
     }
   }
@@ -35,7 +35,7 @@ export function LogoutButton() {
       onClick={handleSignOut}
     >
       <LogOut className="h-5 w-5" />
-      <span className="sr-only">Sign out</span>
+      <span className="sr-only">Cerrar sesion</span>
     </Button>
   )
 }

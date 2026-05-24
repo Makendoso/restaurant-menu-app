@@ -30,7 +30,7 @@ export function LoginForm() {
     setFormError(null)
 
     if (!email.trim() || !password) {
-      setFormError("Email and password are required.")
+      setFormError("El correo y la contrasena son obligatorios.")
       return
     }
 
@@ -48,8 +48,8 @@ export function LoginForm() {
       router.refresh()
     } catch (error) {
       console.error(error)
-      setFormError("Could not sign in. Check your email and password.")
-      toast.error("Could not sign in")
+      setFormError("No se pudo iniciar sesion. Revisa tu correo y contrasena.")
+      toast.error("No se pudo iniciar sesion")
     } finally {
       setIsSubmitting(false)
     }
@@ -69,16 +69,16 @@ export function LoginForm() {
           <Store className="h-5 w-5" />
         </div>
         <div>
-          <h1 className="text-xl font-semibold">Admin Login</h1>
+          <h1 className="text-xl font-semibold">Acceso admin</h1>
           <p className="text-sm text-muted-foreground">
-            Sign in to manage the restaurant.
+            Inicia sesion para administrar el restaurante.
           </p>
         </div>
       </div>
 
       {signedOut && !formError && (
         <div className="mb-4 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-700 dark:text-emerald-300">
-          You signed out successfully.
+          Sesion cerrada correctamente.
         </div>
       )}
 
@@ -91,7 +91,7 @@ export function LoginForm() {
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="email">Email</Label>
+          <Label htmlFor="email">Correo</Label>
           <Input
             id="email"
             type="email"
@@ -107,7 +107,7 @@ export function LoginForm() {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="password">Password</Label>
+          <Label htmlFor="password">Contrasena</Label>
           <Input
             id="password"
             type="password"
@@ -117,13 +117,13 @@ export function LoginForm() {
               setPassword(event.target.value)
               setFormError(null)
             }}
-            placeholder="Your password"
+            placeholder="Tu contrasena"
             disabled={isSubmitting}
           />
         </div>
 
         <Button type="submit" disabled={isSubmitting} className="w-full">
-          {isSubmitting ? "Signing in..." : "Sign In"}
+          {isSubmitting ? "Entrando..." : "Entrar"}
         </Button>
       </form>
     </div>

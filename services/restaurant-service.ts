@@ -14,6 +14,10 @@ import type {
 
 export type SettingsRow = RestaurantSettings & { id?: string }
 export type OrderInsert = Omit<Order, "id" | "orderNumber" | "createdAt">
+export type CleanupOldRestaurantDataResult = {
+  deletedOrders: number
+  deletedSessions: number
+}
 export type TableSessionValidation = {
   valid: boolean
   message: string | null
@@ -510,4 +514,24 @@ export async function createOrderSessionForTable(tableId: string) {
 
   if (error) throw error
   return mapOrderSession(data as OrderSessionRow)
+}
+
+export async function cleanupOldRestaurantData(retentionDays = 7) {
+  await requireAdminSession("limpiar datos antiguos")
+
+  const normalizedRetentionDays = Math.floor(retentionDays)
+  const safeRetentionDays = Number.isFinite(normalizedRetentionDays)
+    ? Math.max(1, normalizedRetentionDays)
+    : 7
+  const { data, error } = await supabase.rpc("cleanup_old_restaurant_data", {
+    retention_days: safeRetentionDays,
+  })
+
+  if (error) throw error
+
+  const row = Array.isArray(data) ? data[0] : data
+  return {
+    deletedOrders: Number(row?.deleted_orders || 0),
+    deletedSessions: Number(row?.deleted_sessions || 0),
+  } satisfies CleanupOldRestaurantDataResult
 }

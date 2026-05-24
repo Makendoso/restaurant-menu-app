@@ -26,16 +26,16 @@ function formatTime(dateString: string) {
   const diffMs = now.getTime() - date.getTime()
   const diffMins = Math.floor(diffMs / 60000)
 
-  if (diffMins < 1) return "Just now"
-  if (diffMins < 60) return `${diffMins}m ago`
+  if (diffMins < 1) return "Ahora"
+  if (diffMins < 60) return `Hace ${diffMins} min`
   const diffHours = Math.floor(diffMins / 60)
-  if (diffHours < 24) return `${diffHours}h ago`
+  if (diffHours < 24) return `Hace ${diffHours} h`
   return date.toLocaleDateString()
 }
 
 const statusConfig = {
   pending: {
-    label: "Pendiente",
+    label: "Pendientes",
     icon: AlertCircle,
     className: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300",
   },
@@ -45,17 +45,17 @@ const statusConfig = {
     className: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
   },
   ready: {
-    label: "Lista",
+    label: "Listas",
     icon: Clock,
     className: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
   },
   delivered: {
-    label: "Entregada",
+    label: "Entregadas",
     icon: CheckCircle2,
     className: "bg-muted text-muted-foreground",
   },
   cancelled: {
-    label: "Cancelada",
+    label: "Canceladas",
     icon: Ban,
     className: "bg-destructive/10 text-destructive",
   },
@@ -108,7 +108,7 @@ export function OrderCard({ order, onClick, isNew }: OrderCardProps) {
           </div>
         </div>
 
-        {/* Status Badge */}
+      {/* Status Badge */}
         <div className="flex flex-col items-end gap-2">
           <div
             className={cn(
@@ -121,11 +121,11 @@ export function OrderCard({ order, onClick, isNew }: OrderCardProps) {
           </div>
           {order.isPaid ? (
             <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">
-              Paid
+              Pagada
             </span>
           ) : (
             <span className="text-xs font-medium text-amber-600 dark:text-amber-400">
-              Unpaid
+              Pago pendiente
             </span>
           )}
         </div>
@@ -134,7 +134,7 @@ export function OrderCard({ order, onClick, isNew }: OrderCardProps) {
       {/* New Order Indicator */}
       {isNew && (
         <div className="mt-3 flex items-center justify-center rounded-lg bg-primary/10 py-1.5 text-xs font-medium text-primary">
-          New Order
+          Nueva orden
         </div>
       )}
     </button>

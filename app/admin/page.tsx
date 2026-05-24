@@ -34,8 +34,8 @@ export default function AdminPage() {
   ).length
 
   const tabs = [
-    { id: "products" as Tab, label: "Products", icon: Package },
-    { id: "categories" as Tab, label: "Categories", icon: FolderOpen },
+    { id: "products" as Tab, label: "Productos", icon: Package },
+    { id: "categories" as Tab, label: "Categorias", icon: FolderOpen },
     { id: "tables" as Tab, label: "Mesas", icon: Table2 },
     { id: "profile" as Tab, label: "Perfil del restaurante", icon: Store },
   ]
@@ -49,19 +49,19 @@ export default function AdminPage() {
             <Link href="/">
               <Button variant="ghost" size="icon">
                 <ArrowLeft className="h-5 w-5" />
-                <span className="sr-only">Back to menu</span>
+                <span className="sr-only">Volver al menu</span>
               </Button>
             </Link>
             <div>
               <h1 className="text-lg font-semibold">{settings.name}</h1>
-              <p className="text-sm text-muted-foreground">Admin Dashboard</p>
+              <p className="text-sm text-muted-foreground">Panel de administracion</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
             <Link href="/admin/orders">
               <Button variant="outline" size="sm" className="relative gap-2">
                 <ClipboardList className="h-4 w-4" />
-                <span className="hidden sm:inline">Orders</span>
+                <span className="hidden sm:inline">Ordenes</span>
                 {activeOrdersCount > 0 && (
                   <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">
                     {activeOrdersCount}
@@ -87,7 +87,7 @@ export default function AdminPage() {
           <div className="mb-4 flex items-center justify-between gap-4 rounded-lg border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">
             <span>{error}</span>
             <Button variant="outline" size="sm" onClick={() => refreshData()}>
-              Retry
+              Reintentar
             </Button>
           </div>
         )}
@@ -118,7 +118,7 @@ export default function AdminPage() {
         <div className="rounded-xl border bg-card p-4 md:p-6">
           {isLoading ? (
             <div className="py-12 text-center text-sm text-muted-foreground">
-              Loading restaurant data...
+              Cargando datos del restaurante...
             </div>
           ) : (
             <>
