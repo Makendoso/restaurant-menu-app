@@ -23,7 +23,6 @@ Sistema web para restaurantes/cafeterías pequeñas que permite visualizar un me
 
 ## Screenshots
 
-<<<<<<< HEAD
 ### Customer Menu
 ![Menu](public/screenshots/menu.png)
 
@@ -35,19 +34,7 @@ Sistema web para restaurantes/cafeterías pequeñas que permite visualizar un me
 
 ### Admin Panel
 ![Admin](public/screenshots/admin.png)
-=======
-### Menu
-![Menu](public/screenshots/menu.png)
->>>>>>> 685c347e510b0f5894d005e33079269b7cad149b
 
-### Cart
-![Cart](public/screenshots/cart.png)
-
-### Orders Dashboard
-![Orders](public/screenshots/orders.png)
-
-### Admin Panel
-![Admin](public/screenshots/admin.png)
 ## Local Setup
 
 ```bash
