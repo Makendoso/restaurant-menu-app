@@ -23,7 +23,17 @@ Sistema web para restaurantes/cafeterías pequeñas que permite visualizar un me
 
 ## Screenshots
 
-Agregar capturas aquí.
+### Customer Menu
+![Menu](public/screenshots/menu.png)
+
+### Orders Dashboard
+![Orders](public/screenshots/orders.png)
+
+### Order Details
+![Order Details](public/screenshots/order-detail.png)
+
+### Admin Panel
+![Admin](public/screenshots/admin.png)
 
 ## Local Setup
 
