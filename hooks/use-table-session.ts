@@ -129,6 +129,18 @@ export function useTableSession(input: UseTableSessionInput) {
 
         if (!isMounted) return
 
+        if (!sessionState.session) {
+          clearStoredTableSession(sessionKey)
+          writeCurrentTableId(null)
+          setState({
+            table: null,
+            session: null,
+            status: "invalid",
+            message: sessionState.message || TABLE_SESSION_UNAVAILABLE_MESSAGE,
+          })
+          return
+        }
+
         if (sessionState.session) {
           writeStoredSession(sessionKey, sessionState.session.id, tableId)
         }

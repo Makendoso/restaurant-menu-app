@@ -450,8 +450,8 @@ export async function startOrResumeTableSession(
   sessionId?: string | null
 ) {
   const { data, error } = await supabase.rpc("start_or_resume_order_session", {
-    qr_token_input: qrToken,
-    existing_session_id: sessionId || null,
+    p_qr_token: qrToken,
+    p_existing_session_id: sessionId || null,
   })
 
   if (error) throw error
@@ -462,7 +462,8 @@ export async function startOrResumeTableSession(
       table: null,
       session: null,
       status: "invalid",
-      message: "La mesa no existe o esta desactivada.",
+      message:
+        "La sesion de esta mesa ya no esta disponible. Escanea nuevamente el QR o solicita ayuda al personal.",
     } satisfies TableSessionState
   }
 
@@ -500,7 +501,8 @@ export async function startOrResumeTableSessionById(
       table: null,
       session: null,
       status: "invalid",
-      message: "La mesa no existe o esta desactivada.",
+      message:
+        "La sesion de esta mesa ya no esta disponible. Escanea nuevamente el QR o solicita ayuda al personal.",
     } satisfies TableSessionState
   }
 

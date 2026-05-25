@@ -202,9 +202,9 @@ $$;
 grant execute on function public.expire_order_sessions() to anon, authenticated;
 
 create or replace function public.start_or_resume_order_session(
-  qr_token_input text,
-  existing_session_id uuid default null,
-  session_minutes integer default 120
+  p_qr_token text,
+  p_existing_session_id uuid default null,
+  p_session_minutes integer default 120
 )
 returns table (
   session_id uuid,
@@ -227,7 +227,7 @@ begin
   select rt.*
   into found_table
   from public.restaurant_tables as rt
-  where rt.qr_token = qr_token_input
+  where rt.qr_token = p_qr_token
     and rt.is_active = true
   limit 1;
 
@@ -235,16 +235,38 @@ begin
     return;
   end if;
 
-  if existing_session_id is not null then
+  if p_existing_session_id is not null then
     select os.*
     into found_session
     from public.order_sessions as os
-    where os.id = existing_session_id
+    where os.id = p_existing_session_id
       and os.table_id = found_table.id
       and os.status = 'active'
       and os.expires_at > now()
       and coalesce(os.last_activity_at, os.started_at, os.created_at) > now() - interval '2 hours'
     limit 1;
+
+    if not found then
+      return;
+    end if;
+
+    update public.order_sessions as os
+    set
+      last_activity_at = now(),
+      expires_at = now() + make_interval(mins => greatest(p_session_minutes, 1))
+    where os.id = found_session.id
+    returning os.* into found_session;
+
+    return query
+      select
+        found_session.id,
+        found_table.id,
+        found_table.number,
+        found_session.status,
+        found_session.started_at,
+        found_session.expires_at;
+
+    return;
   end if;
 
   if found_session.id is null then
@@ -265,14 +287,14 @@ begin
       found_table.id,
       'active',
       now(),
-      now() + make_interval(mins => greatest(session_minutes, 1))
+      now() + make_interval(mins => greatest(p_session_minutes, 1))
     )
     returning os.* into found_session;
   else
     update public.order_sessions as os
     set
       last_activity_at = now(),
-      expires_at = now() + make_interval(mins => greatest(session_minutes, 1))
+      expires_at = now() + make_interval(mins => greatest(p_session_minutes, 1))
     where os.id = found_session.id
     returning os.* into found_session;
   end if;
@@ -340,6 +362,28 @@ begin
       and os.expires_at > now()
       and coalesce(os.last_activity_at, os.started_at, os.created_at) > now() - interval '2 hours'
     limit 1;
+
+    if not found then
+      return;
+    end if;
+
+    update public.order_sessions as os
+    set
+      last_activity_at = now(),
+      expires_at = now() + make_interval(mins => greatest(p_session_minutes, 1))
+    where os.id = found_session.id
+    returning os.* into found_session;
+
+    return query
+      select
+        found_session.id,
+        found_table.id,
+        found_table.number,
+        found_session.status,
+        found_session.started_at,
+        found_session.expires_at;
+
+    return;
   end if;
 
   if found_session.id is null then
