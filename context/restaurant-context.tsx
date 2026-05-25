@@ -107,6 +107,17 @@ function getNextOrderStatus(status: OrderStatus): OrderStatus {
   return statusOrder[Math.min(currentIndex + 1, statusOrder.length - 1)]
 }
 
+function markSessionClosedInList(
+  sessions: OrderSession[],
+  sessionId: string | null | undefined
+) {
+  if (!sessionId) return sessions
+
+  return sessions.map((session) =>
+    session.id === sessionId ? { ...session, status: "closed" as const } : session
+  )
+}
+
 export function RestaurantProvider({ children }: { children: ReactNode }) {
   return (
     <RestaurantDataProvider>
@@ -262,6 +273,9 @@ function RestaurantDataProvider({ children }: { children: ReactNode }) {
       setOrders((prev) =>
         prev.map((order) => (order.id === orderId ? updatedOrder : order))
       )
+      if (status === "delivered") {
+        setSessions((prev) => markSessionClosedInList(prev, updatedOrder.sessionId))
+      }
     },
     []
   )
@@ -287,6 +301,9 @@ function RestaurantDataProvider({ children }: { children: ReactNode }) {
           existing.id === orderId ? updatedOrder : existing
         )
       )
+      if (updatedOrder.isPaid) {
+        setSessions((prev) => markSessionClosedInList(prev, updatedOrder.sessionId))
+      }
     },
     [orders]
   )

@@ -38,6 +38,7 @@ type OrderSessionRow = {
   table_id: string
   status: OrderSessionStatus
   started_at: string
+  last_activity_at?: string
   expires_at: string
   created_at: string
 }
@@ -48,6 +49,7 @@ type SessionRpcRow = {
   table_number: number
   session_status: OrderSessionStatus
   started_at: string
+  last_activity_at?: string
   expires_at: string
 }
 
@@ -59,6 +61,7 @@ type SessionValidationRpcRow = {
   session_id: string | null
   session_status: OrderSessionStatus | null
   started_at: string | null
+  last_activity_at?: string | null
   expires_at: string | null
 }
 
@@ -83,6 +86,7 @@ function mapOrderSession(row: OrderSessionRow): OrderSession {
     tableId: row.table_id,
     status: row.status,
     startedAt: row.started_at,
+    lastActivityAt: row.last_activity_at,
     expiresAt: row.expires_at,
     createdAt: row.created_at,
   }
@@ -102,6 +106,7 @@ function mapSessionRpcRow(row: SessionRpcRow): TableSessionState {
       tableId: row.table_id,
       status: row.session_status,
       startedAt: row.started_at,
+      lastActivityAt: row.last_activity_at,
       expiresAt: row.expires_at,
       createdAt: row.started_at,
     },
@@ -138,6 +143,7 @@ function mapSessionValidationRow(
             tableId: row.table_id,
             status: row.session_status,
             startedAt: row.started_at,
+            lastActivityAt: row.last_activity_at || undefined,
             expiresAt: row.expires_at,
             createdAt: row.started_at,
           }
@@ -556,10 +562,15 @@ export async function createOrderSessionForTable(tableId: string) {
 
   if (closeError) throw closeError
 
-  const expiresAt = new Date(Date.now() + 90 * 60 * 1000).toISOString()
+  const expiresAt = new Date(Date.now() + 120 * 60 * 1000).toISOString()
   const { data, error } = await supabase
     .from("order_sessions")
-    .insert({ table_id: tableId, status: "active", expires_at: expiresAt })
+    .insert({
+      table_id: tableId,
+      status: "active",
+      last_activity_at: new Date().toISOString(),
+      expires_at: expiresAt,
+    })
     .select("*")
     .single()
 

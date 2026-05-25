@@ -78,6 +78,7 @@ export interface OrderSession {
   tableId: string
   status: OrderSessionStatus
   startedAt: string
+  lastActivityAt?: string
   expiresAt: string
   createdAt: string
 }

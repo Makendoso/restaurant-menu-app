@@ -2,7 +2,10 @@
 
 import { useState } from "react"
 import { useCart, useRestaurantData } from "@/context/restaurant-context"
-import { validateTableSession } from "@/services/restaurant-service"
+import {
+  getRestaurantServiceErrorMessage,
+  validateTableSession,
+} from "@/services/restaurant-service"
 import { TABLE_SESSION_UNAVAILABLE_MESSAGE } from "@/hooks/use-table-session"
 import type { Order, TableSessionState } from "@/types"
 import {
@@ -109,7 +112,12 @@ export function CartDrawer({
       )
     } catch (error) {
       console.error(error)
-      toast.error("No se pudo guardar la orden. Intenta de nuevo.")
+      toast.error(
+        getRestaurantServiceErrorMessage(
+          error,
+          "No se pudo guardar la orden. La sesion de la mesa no es valida"
+        )
+      )
     } finally {
       setIsSubmitting(false)
     }

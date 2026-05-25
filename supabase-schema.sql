@@ -56,9 +56,16 @@ create table if not exists public.order_sessions (
   status text not null default 'active'
     check (status in ('active', 'closed', 'expired')),
   started_at timestamptz not null default now(),
-  expires_at timestamptz not null default (now() + interval '90 minutes'),
+  last_activity_at timestamptz not null default now(),
+  expires_at timestamptz not null default (now() + interval '2 hours'),
   created_at timestamptz not null default now()
 );
+
+alter table public.order_sessions
+  add column if not exists last_activity_at timestamptz not null default now();
+
+alter table public.order_sessions
+  alter column expires_at set default (now() + interval '2 hours');
 
 create sequence if not exists public.order_number_seq start 1001;
 
@@ -186,7 +193,10 @@ as $$
   update public.order_sessions
   set status = 'expired'
   where status = 'active'
-    and expires_at <= now();
+    and (
+      expires_at <= now()
+      or coalesce(last_activity_at, started_at, created_at) <= now() - interval '2 hours'
+    );
 $$;
 
 grant execute on function public.expire_order_sessions() to anon, authenticated;
@@ -194,7 +204,7 @@ grant execute on function public.expire_order_sessions() to anon, authenticated;
 create or replace function public.start_or_resume_order_session(
   qr_token_input text,
   existing_session_id uuid default null,
-  session_minutes integer default 90
+  session_minutes integer default 120
 )
 returns table (
   session_id uuid,
@@ -233,6 +243,7 @@ begin
       and os.table_id = found_table.id
       and os.status = 'active'
       and os.expires_at > now()
+      and coalesce(os.last_activity_at, os.started_at, os.created_at) > now() - interval '2 hours'
     limit 1;
   end if;
 
@@ -243,17 +254,26 @@ begin
     where os.table_id = found_table.id
       and os.status = 'active'
       and os.expires_at > now()
+      and coalesce(os.last_activity_at, os.started_at, os.created_at) > now() - interval '2 hours'
     order by os.created_at desc
     limit 1;
   end if;
 
   if found_session.id is null then
-    insert into public.order_sessions (table_id, status, expires_at)
+    insert into public.order_sessions (table_id, status, last_activity_at, expires_at)
     values (
       found_table.id,
       'active',
+      now(),
       now() + make_interval(mins => greatest(session_minutes, 1))
     )
+    returning * into found_session;
+  else
+    update public.order_sessions
+    set
+      last_activity_at = now(),
+      expires_at = now() + make_interval(mins => greatest(session_minutes, 1))
+    where id = found_session.id
     returning * into found_session;
   end if;
 
@@ -277,7 +297,7 @@ grant execute on function public.start_or_resume_order_session(
 create or replace function public.start_or_resume_order_session_by_number(
   table_number_input integer,
   existing_session_id uuid default null,
-  session_minutes integer default 90
+  session_minutes integer default 120
 )
 returns table (
   session_id uuid,
@@ -316,6 +336,7 @@ begin
       and os.table_id = found_table.id
       and os.status = 'active'
       and os.expires_at > now()
+      and coalesce(os.last_activity_at, os.started_at, os.created_at) > now() - interval '2 hours'
     limit 1;
   end if;
 
@@ -326,17 +347,26 @@ begin
     where os.table_id = found_table.id
       and os.status = 'active'
       and os.expires_at > now()
+      and coalesce(os.last_activity_at, os.started_at, os.created_at) > now() - interval '2 hours'
     order by os.created_at desc
     limit 1;
   end if;
 
   if found_session.id is null then
-    insert into public.order_sessions (table_id, status, expires_at)
+    insert into public.order_sessions (table_id, status, last_activity_at, expires_at)
     values (
       found_table.id,
       'active',
+      now(),
       now() + make_interval(mins => greatest(session_minutes, 1))
     )
+    returning * into found_session;
+  else
+    update public.order_sessions
+    set
+      last_activity_at = now(),
+      expires_at = now() + make_interval(mins => greatest(session_minutes, 1))
+    where id = found_session.id
     returning * into found_session;
   end if;
 
@@ -412,6 +442,7 @@ begin
     and os.table_id = order_table_id
     and os.status = 'active'
     and os.expires_at > now()
+    and coalesce(os.last_activity_at, os.started_at, os.created_at) > now() - interval '2 hours'
   limit 1;
 
   if not found then
@@ -427,6 +458,12 @@ begin
         null::timestamptz;
     return;
   end if;
+
+  update public.order_sessions
+  set
+    last_activity_at = now(),
+    expires_at = now() + interval '2 hours'
+  where id = active_row.session_id;
 
   return query
     select
@@ -493,11 +530,11 @@ begin
   end if;
 
   if order_table_id is null then
-    raise exception 'table_id is required';
+    raise exception 'No se pudo crear la orden: table_id es requerido.';
   end if;
 
   if order_session_id is null then
-    raise exception 'session_id is required';
+    raise exception 'No se pudo crear la orden: session_id es requerido.';
   end if;
 
   select os.*
@@ -507,10 +544,11 @@ begin
     and os.table_id = order_table_id
     and os.status = 'active'
     and os.expires_at > now()
+    and coalesce(os.last_activity_at, os.started_at, os.created_at) > now() - interval '2 hours'
   limit 1;
 
   if active_session.id is null then
-    raise exception 'active table session is required';
+    raise exception 'No se pudo crear la orden: la sesion de mesa no es valida, expiro o no pertenece a esta mesa.';
   end if;
 
   select rt.*
@@ -521,8 +559,15 @@ begin
   limit 1;
 
   if active_table.id is null then
-    raise exception 'active table is required';
+    raise exception 'No se pudo crear la orden: la mesa no existe o esta desactivada.';
   end if;
+
+  update public.order_sessions
+  set
+    last_activity_at = now(),
+    expires_at = now() + interval '2 hours'
+  where id = active_session.id
+  returning * into active_session;
 
   insert into public.orders (
     "customerName",
@@ -609,9 +654,10 @@ begin
       and os.table_id = order_table_id
       and os.status = 'active'
       and os.expires_at > now()
+      and coalesce(os.last_activity_at, os.started_at, os.created_at) > now() - interval '2 hours'
       and rt.is_active = true
   ) then
-    raise exception 'active table session is required';
+    raise exception 'La sesion de esta mesa ya no esta disponible.';
   end if;
 
   return query
@@ -637,6 +683,30 @@ end;
 $$;
 
 grant execute on function public.get_public_session_orders(uuid, uuid) to anon, authenticated;
+
+create or replace function public.close_order_session_when_order_finished()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if new.session_id is not null and (new."isPaid" = true or new.status = 'delivered') then
+    update public.order_sessions
+    set status = 'closed'
+    where id = new.session_id
+      and status = 'active';
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists close_order_session_when_order_finished_trigger on public.orders;
+create trigger close_order_session_when_order_finished_trigger
+after update of "isPaid", status on public.orders
+for each row
+execute function public.close_order_session_when_order_finished();
 
 drop function if exists public.cleanup_old_restaurant_data(integer);
 
