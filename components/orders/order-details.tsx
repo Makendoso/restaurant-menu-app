@@ -93,6 +93,11 @@ export function OrderDetails({ order, onClose }: OrderDetailsProps) {
 
   const status = statusConfig[currentOrder.status]
   const isWorking = pendingAction !== null
+  const tableLabel = currentOrder.tableNumber
+    ? `Mesa ${currentOrder.tableNumber}`
+    : currentOrder.tableId
+      ? `Mesa ${currentOrder.tableId.slice(0, 8)}`
+      : null
 
   const handleAdvanceStatus = async () => {
     setPendingAction("status")
@@ -175,12 +180,12 @@ export function OrderDetails({ order, onClose }: OrderDetailsProps) {
                 <p className="font-medium">{currentOrder.customerName}</p>
               </div>
             </div>
-            {currentOrder.tableNumber && (
+            {tableLabel && (
               <div className="flex items-center gap-3">
                 <Hash className="h-5 w-5 text-muted-foreground" />
                 <div>
                   <p className="text-sm text-muted-foreground">Mesa</p>
-                  <p className="font-medium">Mesa {currentOrder.tableNumber}</p>
+                  <p className="font-medium">{tableLabel}</p>
                 </div>
               </div>
             )}

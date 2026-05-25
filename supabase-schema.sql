@@ -274,6 +274,89 @@ grant execute on function public.start_or_resume_order_session(
   integer
 ) to anon, authenticated;
 
+create or replace function public.start_or_resume_order_session_by_number(
+  table_number_input integer,
+  existing_session_id uuid default null,
+  session_minutes integer default 90
+)
+returns table (
+  session_id uuid,
+  table_id uuid,
+  table_number integer,
+  session_status text,
+  started_at timestamptz,
+  expires_at timestamptz
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  found_table public.restaurant_tables%rowtype;
+  found_session public.order_sessions%rowtype;
+begin
+  perform public.expire_order_sessions();
+
+  select rt.*
+  into found_table
+  from public.restaurant_tables as rt
+  where rt.number = table_number_input
+    and rt.is_active = true
+  limit 1;
+
+  if not found then
+    return;
+  end if;
+
+  if existing_session_id is not null then
+    select os.*
+    into found_session
+    from public.order_sessions as os
+    where os.id = existing_session_id
+      and os.table_id = found_table.id
+      and os.status = 'active'
+      and os.expires_at > now()
+    limit 1;
+  end if;
+
+  if found_session.id is null then
+    select os.*
+    into found_session
+    from public.order_sessions as os
+    where os.table_id = found_table.id
+      and os.status = 'active'
+      and os.expires_at > now()
+    order by os.created_at desc
+    limit 1;
+  end if;
+
+  if found_session.id is null then
+    insert into public.order_sessions (table_id, status, expires_at)
+    values (
+      found_table.id,
+      'active',
+      now() + make_interval(mins => greatest(session_minutes, 1))
+    )
+    returning * into found_session;
+  end if;
+
+  return query
+    select
+      found_session.id,
+      found_table.id,
+      found_table.number,
+      found_session.status,
+      found_session.started_at,
+      found_session.expires_at;
+end;
+$$;
+
+grant execute on function public.start_or_resume_order_session_by_number(
+  integer,
+  uuid,
+  integer
+) to anon, authenticated;
+
 drop function if exists public.validate_table_session(uuid, uuid);
 
 create or replace function public.validate_table_session(

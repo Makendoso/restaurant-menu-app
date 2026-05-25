@@ -6,6 +6,7 @@ import {
   Clock,
   DollarSign,
   Hash,
+  MapPin,
   User,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -32,6 +33,11 @@ function formatTime(dateString: string) {
 
 export function OrderCard({ order, onClick, isNew }: OrderCardProps) {
   const { settings } = useRestaurantData()
+  const tableLabel = order.tableNumber
+    ? `Mesa ${order.tableNumber}`
+    : order.tableId
+      ? `Mesa ${order.tableId.slice(0, 8)}`
+      : "Sin mesa"
 
   return (
     <button
@@ -45,10 +51,14 @@ export function OrderCard({ order, onClick, isNew }: OrderCardProps) {
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 space-y-2">
           {/* Order Number & Customer */}
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <div className="flex items-center gap-1.5 text-muted-foreground">
               <Hash className="h-4 w-4" />
               <span className="font-semibold text-foreground">{order.orderNumber}</span>
+            </div>
+            <div className="inline-flex items-center gap-1.5 rounded-md bg-primary/10 px-2 py-1 text-sm font-semibold text-primary">
+              <MapPin className="h-4 w-4" />
+              <span>{tableLabel}</span>
             </div>
             <div className="flex items-center gap-1.5 text-muted-foreground">
               <User className="h-4 w-4" />

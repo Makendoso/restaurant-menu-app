@@ -2,9 +2,14 @@
 
 import { useEffect, useMemo, useState } from "react"
 import type { TableSessionState } from "@/types"
-import { startOrResumeTableSession } from "@/services/restaurant-service"
+import {
+  formatTablePathId,
+  startOrResumeTableSession,
+  startOrResumeTableSessionById,
+} from "@/services/restaurant-service"
 
 const STORAGE_KEY = "restaurant_table_session"
+const CURRENT_TABLE_ID_KEY = "restaurant_current_table_id"
 export const TABLE_SESSION_UNAVAILABLE_MESSAGE =
   "La sesion de esta mesa ya no esta disponible. Escanea nuevamente el QR o solicita ayuda al personal."
 const EXPIRED_MESSAGE =
@@ -12,32 +17,48 @@ const EXPIRED_MESSAGE =
 
 type StoredSession = {
   qrToken: string
+  tableId?: string | null
   sessionId: string
 }
 
-function readStoredSession(qrToken: string) {
+function readStoredSession(sessionKey: string) {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY)
     if (!raw) return null
 
     const stored = JSON.parse(raw) as StoredSession
-    return stored.qrToken === qrToken ? stored.sessionId : null
+    const storedKey = stored.tableId || stored.qrToken
+    return storedKey === sessionKey ? stored.sessionId : null
   } catch {
     return null
   }
 }
 
-function writeStoredSession(qrToken: string, sessionId: string) {
+function writeStoredSession(
+  sessionKey: string,
+  sessionId: string,
+  tableId?: string | null
+) {
   window.localStorage.setItem(
     STORAGE_KEY,
-    JSON.stringify({ qrToken, sessionId })
+    JSON.stringify({ qrToken: sessionKey, tableId, sessionId })
   )
 }
 
-export function clearStoredTableSession(qrToken?: string | null) {
+function writeCurrentTableId(tableId: string | null) {
+  if (tableId) {
+    window.localStorage.setItem(CURRENT_TABLE_ID_KEY, tableId)
+    return
+  }
+
+  window.localStorage.removeItem(CURRENT_TABLE_ID_KEY)
+}
+
+export function clearStoredTableSession(sessionKey?: string | null) {
   try {
-    if (!qrToken) {
+    if (!sessionKey) {
       window.localStorage.removeItem(STORAGE_KEY)
+      window.localStorage.removeItem(CURRENT_TABLE_ID_KEY)
       return
     }
 
@@ -45,7 +66,8 @@ export function clearStoredTableSession(qrToken?: string | null) {
     if (!raw) return
 
     const stored = JSON.parse(raw) as StoredSession
-    if (stored.qrToken === qrToken) {
+    const storedKey = stored.tableId || stored.qrToken
+    if (storedKey === sessionKey) {
       window.localStorage.removeItem(STORAGE_KEY)
     }
   } catch {
@@ -53,7 +75,18 @@ export function clearStoredTableSession(qrToken?: string | null) {
   }
 }
 
-export function useTableSession(qrToken: string | null) {
+type UseTableSessionInput =
+  | string
+  | {
+      qrToken?: string | null
+      tableId?: string | null
+    }
+  | null
+
+export function useTableSession(input: UseTableSessionInput) {
+  const qrToken = typeof input === "string" ? input : input?.qrToken || null
+  const tableId = typeof input === "object" ? input?.tableId || null : null
+  const sessionKey = tableId || qrToken
   const [currentTime, setCurrentTime] = useState(() => Date.now())
   const [state, setState] = useState<TableSessionState>({
     table: null,
@@ -74,7 +107,8 @@ export function useTableSession(qrToken: string | null) {
     let isMounted = true
 
     async function loadSession() {
-      if (!qrToken) {
+      if (!sessionKey) {
+        writeCurrentTableId(null)
         setState({
           table: null,
           session: null,
@@ -85,18 +119,22 @@ export function useTableSession(qrToken: string | null) {
       }
 
       setState((prev) => ({ ...prev, status: "loading", message: null }))
+      writeCurrentTableId(tableId)
 
       try {
-        const storedSessionId = readStoredSession(qrToken)
-        const sessionState = await startOrResumeTableSession(
-          qrToken,
-          storedSessionId
-        )
+        const storedSessionId = readStoredSession(sessionKey)
+        const sessionState = tableId
+          ? await startOrResumeTableSessionById(tableId, storedSessionId)
+          : await startOrResumeTableSession(qrToken || "", storedSessionId)
 
         if (!isMounted) return
 
         if (sessionState.session) {
-          writeStoredSession(qrToken, sessionState.session.id)
+          writeStoredSession(sessionKey, sessionState.session.id, tableId)
+        }
+
+        if (!tableId && sessionState.table) {
+          writeCurrentTableId(formatTablePathId(sessionState.table.number))
         }
 
         const isExpired =
@@ -127,7 +165,7 @@ export function useTableSession(qrToken: string | null) {
     return () => {
       isMounted = false
     }
-  }, [qrToken])
+  }, [qrToken, sessionKey, tableId])
 
   return useMemo(() => {
     const isActive =
@@ -147,7 +185,7 @@ export function useTableSession(qrToken: string | null) {
       canCreateOrder: Boolean(isActive),
       expiredMessage: EXPIRED_MESSAGE,
       invalidateSession: () => {
-        clearStoredTableSession(qrToken)
+        clearStoredTableSession(sessionKey)
         setState({
           table: null,
           session: null,
@@ -156,5 +194,5 @@ export function useTableSession(qrToken: string | null) {
         })
       },
     }
-  }, [currentTime, qrToken, state])
+  }, [currentTime, sessionKey, state])
 }

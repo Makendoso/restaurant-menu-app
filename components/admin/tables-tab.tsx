@@ -14,6 +14,7 @@ import {
   XCircle,
 } from "lucide-react"
 import { useRestaurantData } from "@/context/restaurant-context"
+import { formatTablePathId } from "@/services/restaurant-service"
 import type { OrderSession, RestaurantTable } from "@/types"
 import {
   AlertDialog,
@@ -198,9 +199,9 @@ export function TablesTab() {
     }
   }
 
-  const handleCopyQrUrl = async (token: string) => {
+  const handleCopyQrUrl = async (tableNumber: number) => {
     const origin = window.location.origin
-    const url = `${origin}/menu?t=${token}`
+    const url = `${origin}/table/${formatTablePathId(tableNumber)}`
     await window.navigator.clipboard.writeText(url)
     toast.success("URL del QR copiada")
   }
@@ -269,7 +270,7 @@ export function TablesTab() {
             const isPending = pendingAction?.includes(table.id)
             const isSessionActive = !!currentSession
             const canCreateSession = table.isActive && !isSessionActive
-            const qrUrl = `/menu?t=${table.qrToken}`
+            const qrUrl = `/table/${formatTablePathId(table.number)}`
 
             return (
               <Card
@@ -349,7 +350,7 @@ export function TablesTab() {
                     <Button
                       variant="outline"
                       className="w-full justify-center"
-                      onClick={() => handleCopyQrUrl(table.qrToken)}
+                      onClick={() => handleCopyQrUrl(table.number)}
                     >
                       <Copy className="h-4 w-4" />
                       Copiar enlace QR

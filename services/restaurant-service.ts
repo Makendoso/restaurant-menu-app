@@ -164,6 +164,19 @@ function getErrorMessage(error: unknown) {
   return ""
 }
 
+export function parseTableNumberFromId(tableId: string) {
+  const normalized = tableId.trim().toLowerCase()
+  const match = normalized.match(/^(?:mesa-|table-)?0*(\d+)$/)
+  if (!match) return null
+
+  const number = Number(match[1])
+  return Number.isInteger(number) && number > 0 ? number : null
+}
+
+export function formatTablePathId(tableNumber: number) {
+  return `mesa-${String(tableNumber).padStart(2, "0")}`
+}
+
 export function getRestaurantServiceErrorMessage(
   error: unknown,
   fallback: string
@@ -434,6 +447,44 @@ export async function startOrResumeTableSession(
     qr_token_input: qrToken,
     existing_session_id: sessionId || null,
   })
+
+  if (error) throw error
+
+  const row = Array.isArray(data) ? data[0] : data
+  if (!row) {
+    return {
+      table: null,
+      session: null,
+      status: "invalid",
+      message: "La mesa no existe o esta desactivada.",
+    } satisfies TableSessionState
+  }
+
+  return mapSessionRpcRow(row as SessionRpcRow)
+}
+
+export async function startOrResumeTableSessionById(
+  tableId: string,
+  sessionId?: string | null
+) {
+  const tableNumber = parseTableNumberFromId(tableId)
+
+  if (!tableNumber) {
+    return {
+      table: null,
+      session: null,
+      status: "invalid",
+      message: "La mesa no existe o esta desactivada.",
+    } satisfies TableSessionState
+  }
+
+  const { data, error } = await supabase.rpc(
+    "start_or_resume_order_session_by_number",
+    {
+      table_number_input: tableNumber,
+      existing_session_id: sessionId || null,
+    }
+  )
 
   if (error) throw error
 
