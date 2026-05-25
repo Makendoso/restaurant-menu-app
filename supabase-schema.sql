@@ -260,21 +260,21 @@ begin
   end if;
 
   if found_session.id is null then
-    insert into public.order_sessions (table_id, status, last_activity_at, expires_at)
+    insert into public.order_sessions as os (table_id, status, last_activity_at, expires_at)
     values (
       found_table.id,
       'active',
       now(),
       now() + make_interval(mins => greatest(session_minutes, 1))
     )
-    returning * into found_session;
+    returning os.* into found_session;
   else
-    update public.order_sessions
+    update public.order_sessions as os
     set
       last_activity_at = now(),
       expires_at = now() + make_interval(mins => greatest(session_minutes, 1))
-    where id = found_session.id
-    returning * into found_session;
+    where os.id = found_session.id
+    returning os.* into found_session;
   end if;
 
   return query
@@ -294,10 +294,12 @@ grant execute on function public.start_or_resume_order_session(
   integer
 ) to anon, authenticated;
 
+drop function if exists public.start_or_resume_order_session_by_number(integer, uuid, integer);
+
 create or replace function public.start_or_resume_order_session_by_number(
-  table_number_input integer,
-  existing_session_id uuid default null,
-  session_minutes integer default 120
+  p_table_number integer,
+  p_existing_session_id uuid default null,
+  p_session_minutes integer default 120
 )
 returns table (
   session_id uuid,
@@ -320,7 +322,7 @@ begin
   select rt.*
   into found_table
   from public.restaurant_tables as rt
-  where rt.number = table_number_input
+  where rt.number = p_table_number
     and rt.is_active = true
   limit 1;
 
@@ -328,11 +330,11 @@ begin
     return;
   end if;
 
-  if existing_session_id is not null then
+  if p_existing_session_id is not null then
     select os.*
     into found_session
     from public.order_sessions as os
-    where os.id = existing_session_id
+    where os.id = p_existing_session_id
       and os.table_id = found_table.id
       and os.status = 'active'
       and os.expires_at > now()
@@ -353,21 +355,21 @@ begin
   end if;
 
   if found_session.id is null then
-    insert into public.order_sessions (table_id, status, last_activity_at, expires_at)
+    insert into public.order_sessions as os (table_id, status, last_activity_at, expires_at)
     values (
       found_table.id,
       'active',
       now(),
-      now() + make_interval(mins => greatest(session_minutes, 1))
+      now() + make_interval(mins => greatest(p_session_minutes, 1))
     )
-    returning * into found_session;
+    returning os.* into found_session;
   else
-    update public.order_sessions
+    update public.order_sessions as os
     set
       last_activity_at = now(),
-      expires_at = now() + make_interval(mins => greatest(session_minutes, 1))
-    where id = found_session.id
-    returning * into found_session;
+      expires_at = now() + make_interval(mins => greatest(p_session_minutes, 1))
+    where os.id = found_session.id
+    returning os.* into found_session;
   end if;
 
   return query
@@ -390,8 +392,8 @@ grant execute on function public.start_or_resume_order_session_by_number(
 drop function if exists public.validate_table_session(uuid, uuid);
 
 create or replace function public.validate_table_session(
-  order_table_id uuid,
-  order_session_id uuid
+  p_table_id uuid,
+  p_session_id uuid
 )
 returns table (
   valid boolean,
@@ -412,7 +414,7 @@ declare
 begin
   perform public.expire_order_sessions();
 
-  if order_table_id is null or order_session_id is null then
+  if p_table_id is null or p_session_id is null then
     return query
       select
         false,
@@ -436,10 +438,10 @@ begin
   into active_row
   from public.order_sessions as os
   join public.restaurant_tables as rt on rt.id = os.table_id
-  where rt.id = order_table_id
+  where rt.id = p_table_id
     and rt.is_active = true
-    and os.id = order_session_id
-    and os.table_id = order_table_id
+    and os.id = p_session_id
+    and os.table_id = p_table_id
     and os.status = 'active'
     and os.expires_at > now()
     and coalesce(os.last_activity_at, os.started_at, os.created_at) > now() - interval '2 hours'
@@ -459,11 +461,11 @@ begin
     return;
   end if;
 
-  update public.order_sessions
+  update public.order_sessions as os
   set
     last_activity_at = now(),
     expires_at = now() + interval '2 hours'
-  where id = active_row.session_id;
+  where os.id = active_row.session_id;
 
   return query
     select
@@ -485,12 +487,12 @@ drop function if exists public.create_public_order(text, uuid, jsonb, numeric, t
 drop function if exists public.create_public_order(text, uuid, uuid, jsonb, numeric, text);
 
 create or replace function public.create_public_order(
-  customer_name text,
-  order_table_id uuid,
-  order_session_id uuid,
-  order_items jsonb,
-  order_total numeric,
-  order_notes text default null
+  p_customer_name text,
+  p_table_id uuid,
+  p_session_id uuid,
+  p_items jsonb,
+  p_total numeric,
+  p_notes text default null
 )
 returns table (
   id uuid,
@@ -517,31 +519,31 @@ declare
 begin
   perform public.expire_order_sessions();
 
-  if customer_name is null or length(trim(customer_name)) = 0 then
+  if p_customer_name is null or length(trim(p_customer_name)) = 0 then
     raise exception 'customer_name is required';
   end if;
 
-  if order_items is null or jsonb_typeof(order_items) <> 'array' or jsonb_array_length(order_items) = 0 then
+  if p_items is null or jsonb_typeof(p_items) <> 'array' or jsonb_array_length(p_items) = 0 then
     raise exception 'order_items must be a non-empty array';
   end if;
 
-  if order_total is null or order_total < 0 then
+  if p_total is null or p_total < 0 then
     raise exception 'order_total must be zero or greater';
   end if;
 
-  if order_table_id is null then
+  if p_table_id is null then
     raise exception 'No se pudo crear la orden: table_id es requerido.';
   end if;
 
-  if order_session_id is null then
+  if p_session_id is null then
     raise exception 'No se pudo crear la orden: session_id es requerido.';
   end if;
 
   select os.*
   into active_session
   from public.order_sessions as os
-  where os.id = order_session_id
-    and os.table_id = order_table_id
+  where os.id = p_session_id
+    and os.table_id = p_table_id
     and os.status = 'active'
     and os.expires_at > now()
     and coalesce(os.last_activity_at, os.started_at, os.created_at) > now() - interval '2 hours'
@@ -554,7 +556,7 @@ begin
   select rt.*
   into active_table
   from public.restaurant_tables as rt
-  where rt.id = order_table_id
+  where rt.id = p_table_id
     and rt.is_active = true
   limit 1;
 
@@ -562,14 +564,14 @@ begin
     raise exception 'No se pudo crear la orden: la mesa no existe o esta desactivada.';
   end if;
 
-  update public.order_sessions
+  update public.order_sessions as os
   set
     last_activity_at = now(),
     expires_at = now() + interval '2 hours'
-  where id = active_session.id
-  returning * into active_session;
+  where os.id = active_session.id
+  returning os.* into active_session;
 
-  insert into public.orders (
+  insert into public.orders as o (
     "customerName",
     "tableNumber",
     table_id,
@@ -581,17 +583,17 @@ begin
     notes
   )
   values (
-    trim(customer_name),
+    trim(p_customer_name),
     active_table.number::text,
     active_table.id,
     active_session.id,
-    order_items,
-    order_total,
+    p_items,
+    p_total,
     'pending',
     false,
-    nullif(trim(coalesce(order_notes, '')), '')
+    nullif(trim(coalesce(p_notes, '')), '')
   )
-  returning * into inserted_order;
+  returning o.* into inserted_order;
 
   return query
     select
@@ -622,8 +624,8 @@ grant execute on function public.create_public_order(
 drop function if exists public.get_public_session_orders(uuid, uuid);
 
 create or replace function public.get_public_session_orders(
-  order_table_id uuid,
-  order_session_id uuid
+  p_table_id uuid,
+  p_session_id uuid
 )
 returns table (
   id uuid,
@@ -650,8 +652,8 @@ begin
     select 1
     from public.order_sessions as os
     join public.restaurant_tables as rt on rt.id = os.table_id
-    where os.id = order_session_id
-      and os.table_id = order_table_id
+    where os.id = p_session_id
+      and os.table_id = p_table_id
       and os.status = 'active'
       and os.expires_at > now()
       and coalesce(os.last_activity_at, os.started_at, os.created_at) > now() - interval '2 hours'
@@ -675,8 +677,8 @@ begin
       o.notes,
       o."createdAt"
     from public.orders as o
-    where o.table_id = order_table_id
-      and o.session_id = order_session_id
+    where o.table_id = p_table_id
+      and o.session_id = p_session_id
       and o.status in ('pending', 'preparing', 'ready', 'delivered', 'cancelled')
     order by o."createdAt" desc;
 end;
@@ -692,10 +694,10 @@ set search_path = public
 as $$
 begin
   if new.session_id is not null and (new."isPaid" = true or new.status = 'delivered') then
-    update public.order_sessions
+    update public.order_sessions as os
     set status = 'closed'
-    where id = new.session_id
-      and status = 'active';
+    where os.id = new.session_id
+      and os.status = 'active';
   end if;
 
   return new;

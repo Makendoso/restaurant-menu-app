@@ -397,12 +397,12 @@ export async function saveOrderPayment(orderId: string, isPaid: boolean) {
 
 export async function createOrder(order: OrderInsert) {
   const { data, error } = await supabase.rpc("create_public_order", {
-    customer_name: order.customerName,
-    order_table_id: order.tableId || null,
-    order_session_id: order.sessionId || null,
-    order_items: order.items,
-    order_total: order.total,
-    order_notes: order.notes || null,
+    p_customer_name: order.customerName,
+    p_table_id: order.tableId || null,
+    p_session_id: order.sessionId || null,
+    p_items: order.items,
+    p_total: order.total,
+    p_notes: order.notes || null,
   })
 
   if (error) throw error
@@ -412,8 +412,8 @@ export async function createOrder(order: OrderInsert) {
 
 export async function fetchPublicOrders(tableId: string, sessionId: string) {
   const { data, error } = await supabase.rpc("get_public_session_orders", {
-    order_table_id: tableId,
-    order_session_id: sessionId,
+    p_table_id: tableId,
+    p_session_id: sessionId,
   })
 
   if (error) throw error
@@ -425,8 +425,8 @@ export async function validateTableSession(
   sessionId: string
 ): Promise<TableSessionValidation> {
   const { data, error } = await supabase.rpc("validate_table_session", {
-    order_table_id: tableId,
-    order_session_id: sessionId,
+    p_table_id: tableId,
+    p_session_id: sessionId,
   })
 
   if (error) throw error
@@ -487,8 +487,8 @@ export async function startOrResumeTableSessionById(
   const { data, error } = await supabase.rpc(
     "start_or_resume_order_session_by_number",
     {
-      table_number_input: tableNumber,
-      existing_session_id: sessionId || null,
+      p_table_number: tableNumber,
+      p_existing_session_id: sessionId || null,
     }
   )
 
